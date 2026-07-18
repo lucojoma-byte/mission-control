@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <title>Mission Control v1 · JOE OS</title>
+  <style>
+    /* ==========================================================
+       MISSION CONTROL v1 · VERSIÓN FINAL CONSOLIDADA
+       HTML, estilos, lógica y persistencia en un solo archivo.
+       ========================================================== */
+
+    :root {
+      --fondo: #0b0e14;
+      --superficie: #121722;
+      --superficie-secundaria: #181f2d;
+      --borde: #293244;
+      --texto: #f3f5f7;
+      --texto-suave: #9aa6b6;
+      --acento: #d6aa53;
+      --verde: #32c877;
+      --amarillo: #e8b84b;
+      --rojo: #ef5b5b;
+      --radio: 16px;
+      --sombra: 0 16px 40px rgba(0, 0, 0, 0.24);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      color-scheme: dark;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background: var(--fondo);
+      color: var(--texto);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button,
+    a,
+    input[type="checkbox"] {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .contenedor {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    /* Encabezado */
+    .encabezado {
+      padding: 36px 0 24px;
+    }
+
+    .encabezado__fila {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .marca__etiqueta {
+      margin: 0 0 4px;
+      color: var(--acento);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .marca__titulo {
+      margin: 0;
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+    }
+
+    .fecha {
+      margin: 0;
+      color: var(--texto-suave);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .cabecera__resumen {
+      display: grid;
+      justify-items: end;
+      gap: 10px;
+    }
+
+    .contador {
+      min-width: 250px;
+      padding: 12px 15px;
+      border: 1px solid var(--borde);
+      border-radius: 12px;
+      background: var(--superficie);
+      text-align: right;
+    }
+
+    .contador__etiqueta {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--texto-suave);
+      font-size: 0.72rem;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .contador__valor {
+      display: block;
+      color: var(--acento);
+      font-size: 1.08rem;
+      font-weight: 800;
+    }
+
+    .contador__fecha {
+      display: block;
+      margin-top: 1px;
+      color: var(--texto-suave);
+      font-size: 0.73rem;
+    }
+
+    /* Prioridades del día: estáticas en este módulo */
+    .prioridades {
+      padding: 20px;
+      border: 1px solid var(--borde);
+      border-radius: var(--radio);
+      background: var(--superficie);
+      box-shadow: var(--sombra);
+    }
+
+    .seccion__cabecera {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .seccion__titulo {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: 0.01em;
+    }
+
+    .seccion__ayuda {
+      margin: 0;
+      color: var(--texto-suave);
+      font-size: 0.82rem;
+    }
+
+    .prioridades__lista {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .prioridad {
+      display: flex;
+      align-items: center;
+      min-height: 52px;
+      gap: 10px;
+      padding: 12px 14px;
+      border: 1px solid var(--borde);
+      border-radius: 12px;
+      background: var(--superficie-secundaria);
+    }
+
+    .prioridad input {
+      width: 18px;
+      height: 18px;
+      margin: 0;
+      accent-color: var(--acento);
+      cursor: pointer;
+    }
+
+    .prioridad span {
+      color: var(--texto);
+      font-size: 0.92rem;
+    }
+
+    /* Panel de frentes */
+    main {
+      padding: 8px 0 118px;
+    }
+
+    .panel__cabecera {
+      margin-bottom: 16px;
+    }
+
+    .panel__titulo {
+      margin: 0 0 3px;
+      font-size: 1.2rem;
+    }
+
+    .panel__subtitulo {
+      margin: 0;
+      color: var(--texto-suave);
+      font-size: 0.9rem;
+    }
+
+    .grid-frentes {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .tarjeta {
+      position: relative;
+      overflow: hidden;
+      min-height: 270px;
+      padding: 22px;
+      border: 1px solid var(--color-estado);
+      border-left-width: 5px;
+      border-radius: var(--radio);
+      background: var(--superficie);
+      box-shadow: var(--sombra);
+    }
+
+    .tarjeta--ancha {
+      grid-column: 1 / -1;
+    }
+
+    .tarjeta--verde {
+      --color-estado: var(--verde);
+    }
+
+    .tarjeta--amarillo {
+      --color-estado: var(--amarillo);
+    }
+
+    .tarjeta--rojo {
+      --color-estado: var(--rojo);
+    }
+
+    .tarjeta__cabecera {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .tarjeta__titulo {
+      margin: 0;
+      font-size: 1.15rem;
+    }
+
+    .estado {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 9px;
+      border: 1px solid color-mix(in srgb, var(--color-estado) 48%, transparent);
+      border-radius: 999px;
+      color: var(--color-estado);
+      background: color-mix(in srgb, var(--color-estado) 10%, transparent);
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .estado__punto {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-estado) 18%, transparent);
+    }
+
+    .control-semaforo {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: -8px 0 18px;
+    }
+
+    .control-semaforo__etiqueta {
+      margin-right: 3px;
+      color: var(--texto-suave);
+      font-size: 0.74rem;
+    }
+
+    .opcion-estado {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 32px;
+      padding: 6px 9px;
+      border: 1px solid var(--borde);
+      border-radius: 9px;
+      color: var(--texto-suave);
+      background: var(--superficie-secundaria);
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .opcion-estado:hover,
+    .opcion-estado:focus-visible {
+      border-color: var(--color-opcion);
+      color: var(--texto);
+      outline: none;
+    }
+
+    .opcion-estado[aria-pressed="true"] {
+      border-color: var(--color-opcion);
+      color: var(--color-opcion);
+      background: color-mix(in srgb, var(--color-opcion) 12%, var(--superficie-secundaria));
+    }
+
+    .opcion-estado--verde {
+      --color-opcion: var(--verde);
+    }
+
+    .opcion-estado--amarillo {
+      --color-opcion: var(--amarillo);
+    }
+
+    .opcion-estado--rojo {
+      --color-opcion: var(--rojo);
+    }
+
+    .opcion-estado__punto {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-opcion);
+    }
+
+    .metricas {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin: 0 0 18px;
+    }
+
+    .metrica {
+      min-width: 0;
+      padding: 13px;
+      border: 1px solid var(--borde);
+      border-radius: 12px;
+      background: var(--superficie-secundaria);
+    }
+
+    .metrica__etiqueta {
+      display: block;
+      overflow: hidden;
+      margin-bottom: 4px;
+      color: var(--texto-suave);
+      font-size: 0.75rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .metrica__valor {
+      display: block;
+      font-size: 1.25rem;
+      font-weight: 750;
+      letter-spacing: -0.02em;
+    }
+
+    .nota {
+      margin: auto 0 0;
+      padding-top: 14px;
+      border-top: 1px solid var(--borde);
+      color: var(--texto-suave);
+      font-size: 0.86rem;
+    }
+
+    .nota strong {
+      color: var(--texto);
+      font-weight: 650;
+    }
+
+    /* Barra inferior de accesos directos */
+    .barra-accesos {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 10;
+      padding: 12px 0;
+      border-top: 1px solid var(--borde);
+      background: rgba(11, 14, 20, 0.94);
+      backdrop-filter: blur(14px);
+    }
+
+    .barra-accesos__contenido {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .barra-accesos__contenido::-webkit-scrollbar {
+      display: none;
+    }
+
+    .acceso {
+      flex: 0 0 auto;
+      padding: 9px 13px;
+      border: 1px solid var(--borde);
+      border-radius: 10px;
+      color: var(--texto);
+      background: var(--superficie);
+      font-size: 0.83rem;
+      text-decoration: none;
+    }
+
+    button.acceso {
+      cursor: pointer;
+    }
+
+    .acceso--respaldo {
+      border-color: color-mix(in srgb, var(--acento) 48%, var(--borde));
+      color: var(--acento);
+    }
+
+    .acceso:hover,
+    .acceso:focus-visible {
+      border-color: var(--acento);
+      outline: none;
+    }
+
+    .acceso--titulo {
+      border-color: transparent;
+      color: var(--texto-suave);
+      background: transparent;
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    .entrada-archivo {
+      position: fixed;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .aviso {
+      position: fixed;
+      right: 20px;
+      bottom: 78px;
+      z-index: 20;
+      max-width: min(360px, calc(100% - 40px));
+      padding: 11px 14px;
+      border: 1px solid var(--borde);
+      border-radius: 10px;
+      color: var(--texto);
+      background: var(--superficie-secundaria);
+      box-shadow: var(--sombra);
+      font-size: 0.84rem;
+    }
+
+    .aviso--exito {
+      border-color: var(--verde);
+    }
+
+    .aviso--error {
+      border-color: var(--rojo);
+    }
+
+    /* Ajustes para tablet y teléfono */
+    @media (max-width: 760px) {
+      .contenedor {
+        width: min(100% - 24px, 1180px);
+      }
+
+      .encabezado {
+        padding-top: 24px;
+      }
+
+      .encabezado__fila {
+        display: block;
+      }
+
+      .fecha {
+        margin-top: 10px;
+        text-align: left;
+      }
+
+      .cabecera__resumen {
+        justify-items: start;
+        margin-top: 16px;
+      }
+
+      .contador {
+        width: 100%;
+        min-width: 0;
+        text-align: left;
+      }
+
+      .prioridades__lista,
+      .grid-frentes {
+        grid-template-columns: 1fr;
+      }
+
+      .tarjeta--ancha {
+        grid-column: auto;
+      }
+    }
+
+    @media (max-width: 460px) {
+      .seccion__cabecera,
+      .tarjeta__cabecera {
+        align-items: flex-start;
+      }
+
+      .seccion__ayuda {
+        display: none;
+      }
+
+      .tarjeta {
+        min-height: 0;
+        padding: 18px;
+      }
+
+      .metricas {
+        grid-template-columns: 1fr;
+      }
+
+      .metrica__etiqueta {
+        white-space: normal;
+      }
+
+      .control-semaforo {
+        align-items: stretch;
+        flex-wrap: wrap;
+      }
+
+      .control-semaforo__etiqueta {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="encabezado">
+    <div class="contenedor">
+      <div class="encabezado__fila">
+        <div class="marca">
+          <p class="marca__etiqueta">JOE OS · PILAR 2</p>
+          <h1 class="marca__titulo">Mission Control</h1>
+        </div>
+        <div class="cabecera__resumen">
+          <p class="fecha" id="fecha-actual"></p>
+          <aside class="contador" aria-label="Cuenta regresiva para la reubicación a México">
+            <span class="contador__etiqueta">Reubicación a México</span>
+            <strong class="contador__valor" id="contador-reubicacion">Calculando…</strong>
+            <span class="contador__fecha">Meta: 15 de diciembre de 2026</span>
+          </aside>
+        </div>
+      </div>
+
+      <section class="prioridades" aria-labelledby="titulo-prioridades">
+        <div class="seccion__cabecera">
+          <h2 class="seccion__titulo" id="titulo-prioridades">3 Prioridades de Hoy</h2>
+          <p class="seccion__ayuda">Tus avances se guardan automáticamente</p>
+        </div>
+        <div class="prioridades__lista" id="lista-prioridades"></div>
+      </section>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor">
+      <div class="panel__cabecera">
+        <h2 class="panel__titulo">Frentes activos</h2>
+        <p class="panel__subtitulo">Información cargada desde el estado local del tablero.</p>
+      </div>
+
+      <section class="grid-frentes" id="grid-frentes" aria-label="Resumen de frentes de negocio"></section>
+    </div>
+  </main>
+
+  <nav class="barra-accesos" aria-label="Accesos directos">
+    <div class="contenedor barra-accesos__contenido">
+      <span class="acceso acceso--titulo">Accesos</span>
+      <button class="acceso acceso--respaldo" id="boton-exportar" type="button">Exportar Datos</button>
+      <button class="acceso acceso--respaldo" id="boton-importar" type="button">Importar Datos</button>
+      <a class="acceso" href="#">Obsidian</a>
+      <a class="acceso" href="https://wa.me/523312498283" target="_blank" rel="noopener noreferrer">WhatsApp · Casa Kiraz</a>
+      <a class="acceso" href="#">Trading</a>
+      <a class="acceso" href="#">TikTok Shop</a>
+      <a class="acceso" href="https://drive.google.com" target="_blank" rel="noopener noreferrer">Google Drive</a>
+    </div>
+  </nav>
+  <input class="entrada-archivo" id="entrada-importar" type="file" accept="application/json,.json">
+  <div class="aviso" id="aviso" role="status" aria-live="polite" hidden></div>
+
+  <script>
+    /* ==========================================================
+       MISSION CONTROL v1 · LÓGICA FINAL CONSOLIDADA
+       Estado, semáforos, contador, persistencia y respaldos JSON.
+       ========================================================== */
+
+    const CLAVE_ALMACENAMIENTO = "joe_os_mission_control_v1";
+
+    // Estado inicial usado únicamente la primera vez que se abre el tablero.
+    const estadoInicial = {
+      version: 2,
+      prioridades: [
+        { id: 1, texto: "Revisar agenda de Casa Kiraz", completada: false },
+        { id: 2, texto: "Evaluar candidatos de TikTok Shop", completada: false },
+        { id: 3, texto: "Completar bloque de sistema", completada: false }
+      ],
+      frentes: {
+        casa_kiraz: {
+          nombre: "Casa Kiraz",
+          semaforo: "verde",
+          metricas: { citas_semana: 18, meta_citas: 16, caja_semana: 8450 },
+          nota: "Reforzar agenda del viernes y sábado."
+        },
+        tiktok_shop: {
+          nombre: "TikTok Shop",
+          semaforo: "amarillo",
+          metricas: { candidatos_pipeline: 5, productos_en_test: 0, ventas_validadas: 0 },
+          nota: "Elegir el ganador en el Ritual del Martes."
+        },
+        trading: {
+          nombre: "Trading",
+          semaforo: "rojo",
+          metricas: { pnl_semana: 125, reglas_cumplidas_pct: 80, drawdown_pct: 2.1, drawdown_limite: 3 },
+          nota: "Profit con reglas rotas sigue siendo rojo."
+        },
+        real_estate_e2: {
+          nombre: "Real Estate / E-2",
+          semaforo: "verde",
+          metricas: { candidatos_evaluados_mes: 7, en_analisis_profundo: 2, dias_desde_ultimo_barrido: 6 },
+          nota: "Dar seguimiento a los dos candidatos finalistas."
+        },
+        sistema: {
+          nombre: "Sistema",
+          semaforo: "amarillo",
+          metricas: { prioridades_completadas_semana: 2, automatizaciones_activas: 4, automatizaciones_caidas: 0 },
+          nota: "Falta cerrar una prioridad semanal."
+        }
+      }
+    };
+
+    // Configuración visual separada: los valores reales permanecen en estado.frentes.
+    const configuracionMetricas = {
+      casa_kiraz: [
+        ["citas_semana", "Citas esta semana", "numero"],
+        ["meta_citas", "Meta de citas", "numero"],
+        ["caja_semana", "Caja semanal", "moneda"]
+      ],
+      tiktok_shop: [
+        ["candidatos_pipeline", "Candidatos", "numero"],
+        ["productos_en_test", "Productos en test", "numero"],
+        ["ventas_validadas", "Ventas validadas", "numero"]
+      ],
+      trading: [
+        ["pnl_semana", "P&L semanal", "resultado"],
+        ["reglas_cumplidas_pct", "Reglas cumplidas", "porcentaje"],
+        ["drawdown_pct", "Drawdown", "porcentaje"],
+        ["drawdown_limite", "Límite de drawdown", "porcentaje"]
+      ],
+      real_estate_e2: [
+        ["candidatos_evaluados_mes", "Evaluados este mes", "numero"],
+        ["en_analisis_profundo", "Análisis profundo", "numero"],
+        ["dias_desde_ultimo_barrido", "Días desde barrido", "numero"]
+      ],
+      sistema: [
+        ["prioridades_completadas_semana", "Prioridades completadas", "numero"],
+        ["automatizaciones_activas", "Automatizaciones activas", "numero"],
+        ["automatizaciones_caidas", "Automatizaciones caídas", "numero"]
+      ]
+    };
+
+    const estadosOperativos = {
+      verde: "Operando / Validado",
+      amarillo: "En Proceso / En Pausa",
+      rojo: "Alerta / Desechado"
+    };
+
+    // Crea una copia independiente para evitar modificar el estado inicial.
+    function copiarEstadoInicial() {
+      return JSON.parse(JSON.stringify(estadoInicial));
+    }
+
+    // Conserva los datos guardados por el Módulo 2 y migra su semáforo anterior.
+    function normalizarEstado(estadoGuardado) {
+      const base = copiarEstadoInicial();
+      const normalizado = estadoGuardado && typeof estadoGuardado === "object"
+        ? estadoGuardado
+        : base;
+
+      normalizado.version = 2;
+      normalizado.prioridades = Array.isArray(normalizado.prioridades)
+        ? normalizado.prioridades
+        : base.prioridades;
+      normalizado.frentes = normalizado.frentes || base.frentes;
+
+      Object.keys(base.frentes).forEach((claveFrente) => {
+        const frenteBase = base.frentes[claveFrente];
+        const frenteGuardado = normalizado.frentes[claveFrente] || frenteBase;
+        frenteGuardado.semaforo = frenteGuardado.semaforo ||
+          frenteGuardado.semaforo_ejemplo || frenteBase.semaforo;
+        delete frenteGuardado.semaforo_ejemplo;
+        normalizado.frentes[claveFrente] = frenteGuardado;
+      });
+
+      return normalizado;
+    }
+
+    function cargarEstado() {
+      try {
+        const datosGuardados = localStorage.getItem(CLAVE_ALMACENAMIENTO);
+        return normalizarEstado(datosGuardados ? JSON.parse(datosGuardados) : copiarEstadoInicial());
+      } catch (error) {
+        console.warn("No se pudo leer el estado guardado; se usará el estado inicial.", error);
+        return copiarEstadoInicial();
+      }
+    }
+
+    let estado = cargarEstado();
+
+    function guardarEstado() {
+      try {
+        localStorage.setItem(CLAVE_ALMACENAMIENTO, JSON.stringify(estado));
+      } catch (error) {
+        console.error("No se pudo guardar el tablero en este navegador.", error);
+      }
+    }
+
+    let temporizadorAviso;
+
+    function mostrarAviso(mensaje, tipo = "exito") {
+      const aviso = document.getElementById("aviso");
+      clearTimeout(temporizadorAviso);
+      aviso.textContent = mensaje;
+      aviso.className = `aviso aviso--${tipo}`;
+      aviso.hidden = false;
+      temporizadorAviso = setTimeout(() => {
+        aviso.hidden = true;
+      }, 4200);
+    }
+
+    function exportarDatos() {
+      const respaldo = {
+        tipo: "JOE_OS_MISSION_CONTROL_RESPALDO",
+        version: 1,
+        exportado_en: new Date().toISOString(),
+        estado
+      };
+      const contenido = JSON.stringify(respaldo, null, 2);
+      const archivo = new Blob([contenido], { type: "application/json" });
+      const enlaceTemporal = URL.createObjectURL(archivo);
+      const enlace = document.createElement("a");
+      const fecha = new Date().toISOString().slice(0, 10);
+
+      enlace.href = enlaceTemporal;
+      enlace.download = `joe-os-respaldo-${fecha}.json`;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      setTimeout(() => URL.revokeObjectURL(enlaceTemporal), 1000);
+      mostrarAviso("Respaldo descargado correctamente.");
+    }
+
+    function validarEstadoImportado(candidato) {
+      if (!candidato || typeof candidato !== "object") return false;
+      if (!Array.isArray(candidato.prioridades) || candidato.prioridades.length !== 3) return false;
+      if (!candidato.frentes || typeof candidato.frentes !== "object") return false;
+
+      const prioridadesValidas = candidato.prioridades.every((prioridad) =>
+        prioridad &&
+        typeof prioridad.texto === "string" &&
+        typeof prioridad.completada === "boolean"
+      );
+      if (!prioridadesValidas) return false;
+
+      return Object.keys(estadoInicial.frentes).every((claveFrente) => {
+        const frente = candidato.frentes[claveFrente];
+        const semaforo = frente && (frente.semaforo || frente.semaforo_ejemplo);
+        return frente &&
+          frente.metricas &&
+          typeof frente.metricas === "object" &&
+          typeof frente.nota === "string" &&
+          Object.hasOwn(estadosOperativos, semaforo);
+      });
+    }
+
+    async function importarDatos(archivo) {
+      try {
+        const contenido = await archivo.text();
+        const respaldo = JSON.parse(contenido);
+        const candidato = respaldo.estado || respaldo;
+
+        if (!validarEstadoImportado(candidato)) {
+          throw new Error("El archivo no contiene un estado válido de Mission Control.");
+        }
+
+        estado = normalizarEstado(candidato);
+        guardarEstado();
+        renderizarPrioridades();
+        renderizarFrentes();
+        mostrarAviso("Datos restaurados correctamente.");
+      } catch (error) {
+        console.error("No se pudo importar el respaldo.", error);
+        mostrarAviso("No se pudo importar: selecciona un respaldo JSON válido.", "error");
+      }
+    }
+
+    function formatearValor(valor, formato) {
+      const numero = Number(valor);
+
+      if (formato === "moneda") {
+        return new Intl.NumberFormat("es-MX", {
+          style: "currency",
+          currency: "MXN",
+          maximumFractionDigits: 0
+        }).format(numero);
+      }
+
+      if (formato === "porcentaje") return `${numero}%`;
+      if (formato === "resultado") return `${numero > 0 ? "+" : ""}$${numero.toLocaleString("es-MX")}`;
+      return numero.toLocaleString("es-MX");
+    }
+
+    function mostrarFechaActual() {
+      const fecha = new Intl.DateTimeFormat("es-MX", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      }).format(new Date());
+
+      document.getElementById("fecha-actual").textContent =
+        fecha.charAt(0).toUpperCase() + fecha.slice(1);
+    }
+
+    function sumarMeses(fecha, cantidad) {
+      return new Date(fecha.getFullYear(), fecha.getMonth() + cantidad, fecha.getDate());
+    }
+
+    function actualizarContadorReubicacion() {
+      const ahora = new Date();
+      const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+      const fechaObjetivo = new Date(2026, 11, 15);
+      const elemento = document.getElementById("contador-reubicacion");
+
+      if (hoy >= fechaObjetivo) {
+        elemento.textContent = "Meta alcanzada";
+        return;
+      }
+
+      let meses = (fechaObjetivo.getFullYear() - hoy.getFullYear()) * 12 +
+        fechaObjetivo.getMonth() - hoy.getMonth();
+
+      if (sumarMeses(hoy, meses) > fechaObjetivo) meses -= 1;
+
+      const fechaTrasMeses = sumarMeses(hoy, meses);
+      const inicioUTC = Date.UTC(
+        fechaTrasMeses.getFullYear(),
+        fechaTrasMeses.getMonth(),
+        fechaTrasMeses.getDate()
+      );
+      const objetivoUTC = Date.UTC(2026, 11, 15);
+      const dias = Math.round((objetivoUTC - inicioUTC) / 86400000);
+
+      const textoMeses = `${meses} ${meses === 1 ? "mes" : "meses"}`;
+      const textoDias = `${dias} ${dias === 1 ? "día" : "días"}`;
+      elemento.textContent = `${textoMeses} · ${textoDias}`;
+    }
+
+    function renderizarPrioridades() {
+      const lista = document.getElementById("lista-prioridades");
+      lista.replaceChildren();
+
+      estado.prioridades.forEach((prioridad) => {
+        const etiqueta = document.createElement("label");
+        etiqueta.className = "prioridad";
+
+        const casilla = document.createElement("input");
+        casilla.type = "checkbox";
+        casilla.checked = Boolean(prioridad.completada);
+        casilla.setAttribute("aria-label", `Completar prioridad: ${prioridad.texto}`);
+        casilla.addEventListener("change", () => {
+          prioridad.completada = casilla.checked;
+          guardarEstado();
+        });
+
+        const texto = document.createElement("span");
+        texto.textContent = prioridad.texto;
+
+        etiqueta.append(casilla, texto);
+        lista.appendChild(etiqueta);
+      });
+    }
+
+    function crearMetrica(etiqueta, valor) {
+      const contenedor = document.createElement("div");
+      contenedor.className = "metrica";
+
+      const nombre = document.createElement("span");
+      nombre.className = "metrica__etiqueta";
+      nombre.textContent = etiqueta;
+
+      const cifra = document.createElement("span");
+      cifra.className = "metrica__valor";
+      cifra.textContent = valor;
+
+      contenedor.append(nombre, cifra);
+      return contenedor;
+    }
+
+    function crearControlSemaforo(claveFrente, semaforoActual) {
+      const control = document.createElement("div");
+      control.className = "control-semaforo";
+      control.setAttribute("role", "group");
+      control.setAttribute("aria-label", `Cambiar estado de ${estado.frentes[claveFrente].nombre}`);
+
+      const etiqueta = document.createElement("span");
+      etiqueta.className = "control-semaforo__etiqueta";
+      etiqueta.textContent = "Estado operativo:";
+      control.appendChild(etiqueta);
+
+      Object.entries(estadosOperativos).forEach(([color, significado]) => {
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.className = `opcion-estado opcion-estado--${color}`;
+        boton.setAttribute("aria-pressed", String(color === semaforoActual));
+        boton.setAttribute("aria-label", `${color}: ${significado}`);
+        boton.title = significado;
+
+        const punto = document.createElement("span");
+        punto.className = "opcion-estado__punto";
+        punto.setAttribute("aria-hidden", "true");
+
+        const texto = document.createElement("span");
+        texto.textContent = color.charAt(0).toUpperCase() + color.slice(1);
+        boton.append(punto, texto);
+
+        boton.addEventListener("click", () => {
+          estado.frentes[claveFrente].semaforo = color;
+          guardarEstado();
+          renderizarFrentes();
+        });
+
+        control.appendChild(boton);
+      });
+
+      return control;
+    }
+
+    function renderizarFrentes() {
+      const grid = document.getElementById("grid-frentes");
+      grid.replaceChildren();
+
+      Object.entries(estado.frentes).forEach(([claveFrente, frente]) => {
+        const tarjeta = document.createElement("article");
+        tarjeta.className = `tarjeta tarjeta--${frente.semaforo}`;
+        if (claveFrente === "sistema") tarjeta.classList.add("tarjeta--ancha");
+
+        const cabecera = document.createElement("div");
+        cabecera.className = "tarjeta__cabecera";
+
+        const titulo = document.createElement("h3");
+        titulo.className = "tarjeta__titulo";
+        titulo.textContent = frente.nombre;
+
+        const indicador = document.createElement("span");
+        indicador.className = "estado";
+        const punto = document.createElement("span");
+        punto.className = "estado__punto";
+        indicador.title = estadosOperativos[frente.semaforo];
+        indicador.append(
+          punto,
+          document.createTextNode(frente.semaforo.charAt(0).toUpperCase() + frente.semaforo.slice(1))
+        );
+        cabecera.append(titulo, indicador);
+
+        const controlSemaforo = crearControlSemaforo(claveFrente, frente.semaforo);
+
+        const metricas = document.createElement("div");
+        metricas.className = "metricas";
+        configuracionMetricas[claveFrente].forEach(([clave, etiqueta, formato]) => {
+          metricas.appendChild(crearMetrica(etiqueta, formatearValor(frente.metricas[clave], formato)));
+        });
+
+        const nota = document.createElement("p");
+        nota.className = "nota";
+        const etiquetaNota = document.createElement("strong");
+        etiquetaNota.textContent = "Nota: ";
+        nota.append(etiquetaNota, document.createTextNode(frente.nota));
+
+        tarjeta.append(cabecera, controlSemaforo, metricas, nota);
+        grid.appendChild(tarjeta);
+      });
+    }
+
+    // Guarda también el estado inicial para que exista desde la primera apertura.
+    document.getElementById("boton-exportar").addEventListener("click", exportarDatos);
+    document.getElementById("boton-importar").addEventListener("click", () => {
+      document.getElementById("entrada-importar").click();
+    });
+    document.getElementById("entrada-importar").addEventListener("change", (evento) => {
+      const archivo = evento.target.files[0];
+      if (archivo) importarDatos(archivo);
+      evento.target.value = "";
+    });
+
+    guardarEstado();
+    mostrarFechaActual();
+    actualizarContadorReubicacion();
+    renderizarPrioridades();
+    renderizarFrentes();
+
+    // La cifra cambia al cruzar la medianoche sin necesidad de recargar la página.
+    setInterval(actualizarContadorReubicacion, 60000);
+  </script>
+</body>
+</html>
