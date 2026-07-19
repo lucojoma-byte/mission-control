@@ -609,7 +609,7 @@
       <button class="acceso acceso--respaldo" id="boton-exportar" type="button">Exportar Datos</button>
       <button class="acceso acceso--respaldo" id="boton-importar" type="button">Importar Datos</button>
       <a class="acceso" href="#">Obsidian</a>
-      <a class="acceso" href="https://wa.me/523312498283" target="_blank" rel="noopener noreferrer">WhatsApp · Casa Kiraz</a>
+      <a class="acceso" href="https://wa.me/523312498283" target="_blank" rel="noopener noreferrer">WhatsApp · +52 33 1249 8283</a>
       <a class="acceso" href="#">Trading</a>
       <a class="acceso" href="#">TikTok Shop</a>
       <a class="acceso" href="https://drive.google.com" target="_blank" rel="noopener noreferrer">Google Drive</a>
@@ -625,6 +625,7 @@
        ========================================================== */
 
     const CLAVE_ALMACENAMIENTO = "joe_os_mission_control_v1";
+    const ZONA_HORARIA_OPERATIVA = "America/Mexico_City";
 
     // Estado inicial usado únicamente la primera vez que se abre el tablero.
     const estadoInicial = {
@@ -849,8 +850,21 @@
       return numero.toLocaleString("es-MX");
     }
 
+    function obtenerFechaOperativa() {
+      const partes = new Intl.DateTimeFormat("en-CA", {
+        timeZone: ZONA_HORARIA_OPERATIVA,
+        year: "numeric",
+        month: "numeric",
+        day: "numeric"
+      }).formatToParts(new Date());
+      const valores = Object.fromEntries(partes.map((parte) => [parte.type, parte.value]));
+
+      return new Date(Number(valores.year), Number(valores.month) - 1, Number(valores.day));
+    }
+
     function mostrarFechaActual() {
       const fecha = new Intl.DateTimeFormat("es-MX", {
+        timeZone: ZONA_HORARIA_OPERATIVA,
         weekday: "long",
         day: "numeric",
         month: "long",
@@ -858,7 +872,7 @@
       }).format(new Date());
 
       document.getElementById("fecha-actual").textContent =
-        fecha.charAt(0).toUpperCase() + fecha.slice(1);
+        `${fecha.charAt(0).toUpperCase() + fecha.slice(1)} · Guadalajara, MX`;
     }
 
     function sumarMeses(fecha, cantidad) {
@@ -866,8 +880,7 @@
     }
 
     function actualizarContadorReubicacion() {
-      const ahora = new Date();
-      const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+      const hoy = obtenerFechaOperativa();
       const fechaObjetivo = new Date(2026, 11, 15);
       const elemento = document.getElementById("contador-reubicacion");
 
