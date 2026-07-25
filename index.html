@@ -801,10 +801,24 @@
 
     function copiaInicial() { return JSON.parse(JSON.stringify(estadoInicial)); }
 
+    function consecutivoDesdeValor(valor, extra = 0) {
+      const digitos = String(Math.abs(Number(valor) || Date.now()) + extra).replace(/\D/g, "");
+      return digitos.slice(-6).padStart(6, "0");
+    }
+
+    function derivarIdsVisita(visita = {}, indice = 0) {
+      const fuente = visita.id || visita.guardadoEn || Date.now() + indice;
+      return {
+        clienteId: visita.clienteId || `CL-${consecutivoDesdeValor(fuente, indice * 3)}`,
+        leadId: visita.leadId || `LE-${consecutivoDesdeValor(fuente, (indice * 3) + 1)}`,
+        ticketId: visita.ticketId || `TK-${consecutivoDesdeValor(fuente, (indice * 3) + 2)}`,
+      };
+    }
+
     function normalizarEstado(candidato) {
       const base = copiaInicial();
       const normal = candidato && typeof candidato === "object" ? candidato : base;
-      normal.version = 4;
+      normal.version = 5;
       normal.prioridades = Array.isArray(normal.prioridades) ? normal.prioridades : base.prioridades;
       normal.frentes = normal.frentes || base.frentes;
       Object.keys(base.frentes).forEach((clave) => {
@@ -815,7 +829,10 @@
       });
       normal.campo = normal.campo && typeof normal.campo === "object" ? normal.campo : base.campo;
       normal.campo.borrador = normal.campo.borrador || {};
-      normal.campo.guardados = Array.isArray(normal.campo.guardados) ? normal.campo.guardados : [];
+      normal.campo.guardados = (Array.isArray(normal.campo.guardados) ? normal.campo.guardados : []).map((visita, indice) => ({
+        ...visita,
+        ...derivarIdsVisita(visita, indice),
+      }));
       return normal;
     }
 
@@ -929,7 +946,7 @@
                   <li>${visita.telefono ? visita.telefono : "Sin teléfono"}</li>
                 </ul>
                 <div class="visit-card__actions">
-                  ${visita.registroUrl ? `<a class="button" href="${escaparAtributo(visita.registroUrl)}" target="_blank" rel="noopener noreferrer">Abrir registro</a>` : ""}
+                  ${visita.registroUrl ? `<a class="button" href="${escaparAtributo(visita.registroUrl)}" target="_blank" rel="noopener noreferrer">Descargar registro JSON</a>` : ""}
                   ${(visita.fotosRemotas || []).length ? `<a class="button" href="${escaparAtributo((visita.fotosRemotas || [])[0].url)}" target="_blank" rel="noopener noreferrer">Abrir foto</a>` : ""}
                 </div>
               </article>`).join("")}
@@ -1395,7 +1412,7 @@
     }
 
     function exportarDatos() {
-      const respaldo = { tipo: "GUARDIAN_OPS_RESPALDO", compatible_con: "JOE_OS_MISSION_CONTROL", version: 4, exportado_en: new Date().toISOString(), estado };
+      const respaldo = { tipo: "GUARDIAN_OPS_RESPALDO", compatible_con: "JOE_OS_MISSION_CONTROL", version: 5, exportado_en: new Date().toISOString(), estado };
       const url = URL.createObjectURL(new Blob([JSON.stringify(respaldo, null, 2)], { type: "application/json" }));
       const enlace = document.createElement("a");
       enlace.href = url;
