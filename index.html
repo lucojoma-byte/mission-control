@@ -3,38 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b0e14">
   <meta name="color-scheme" content="dark">
-  <title>Mission Control v1 · JOE OS</title>
+  <title>Guardian Ops · Holding</title>
   <style>
-    /* ==========================================================
-       MISSION CONTROL v1 · VERSIÓN FINAL CONSOLIDADA
-       HTML, estilos, lógica y persistencia en un solo archivo.
-       ========================================================== */
-
     :root {
       --fondo: #0b0e14;
       --superficie: #121722;
-      --superficie-secundaria: #181f2d;
+      --superficie-2: #181f2d;
+      --superficie-3: #20293a;
       --borde: #293244;
       --texto: #f3f5f7;
-      --texto-suave: #9aa6b6;
+      --suave: #9aa6b6;
       --acento: #d6aa53;
+      --acento-2: #f1d28d;
       --verde: #32c877;
       --amarillo: #e8b84b;
       --rojo: #ef5b5b;
+      --azul: #58a6ff;
       --radio: 16px;
       --sombra: 0 16px 40px rgba(0, 0, 0, 0.24);
+      --sidebar: 242px;
     }
 
-    * {
-      box-sizing: border-box;
-    }
-
-    html {
-      color-scheme: dark;
-      scroll-behavior: smooth;
-    }
-
+    * { box-sizing: border-box; }
+    html { color-scheme: dark; scroll-behavior: smooth; }
     body {
       margin: 0;
       min-width: 320px;
@@ -44,592 +37,502 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       line-height: 1.5;
     }
+    button, input, select, textarea { font: inherit; }
+    button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+    button, a { touch-action: manipulation; }
+    [hidden] { display: none !important; }
 
-    button,
-    input {
-      font: inherit;
+    .app { min-height: 100vh; }
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 30;
+      width: var(--sidebar);
+      padding: 24px 16px;
+      border-right: 1px solid var(--borde);
+      background: #0e121a;
     }
-
-    button,
-    a,
-    input[type="checkbox"] {
-      -webkit-tap-highlight-color: transparent;
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 8px 22px;
+      border-bottom: 1px solid var(--borde);
     }
-
-    .contenedor {
-      width: min(1180px, calc(100% - 40px));
-      margin: 0 auto;
+    .brand__mark {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--acento) 70%, var(--borde));
+      border-radius: 11px;
+      color: var(--acento);
+      background: color-mix(in srgb, var(--acento) 10%, transparent);
+      font-weight: 900;
     }
-
-    /* Encabezado */
-    .encabezado {
-      padding: 36px 0 24px;
+    .brand__eyebrow {
+      margin: 0;
+      color: var(--acento);
+      font-size: .68rem;
+      font-weight: 850;
+      letter-spacing: .15em;
+      text-transform: uppercase;
     }
+    .brand__name { margin: 1px 0 0; font-size: 1.02rem; }
+    .nav { display: grid; gap: 5px; margin-top: 22px; }
+    .nav__link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 44px;
+      padding: 10px 12px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      color: var(--suave);
+      text-decoration: none;
+      font-size: .88rem;
+      font-weight: 650;
+    }
+    .nav__icon {
+      width: 24px;
+      color: inherit;
+      text-align: center;
+      font-size: .92rem;
+    }
+    .nav__link:hover, .nav__link:focus-visible {
+      border-color: var(--borde);
+      color: var(--texto);
+      outline: none;
+    }
+    .nav__link[aria-current="page"] {
+      border-color: color-mix(in srgb, var(--acento) 38%, var(--borde));
+      color: var(--acento-2);
+      background: color-mix(in srgb, var(--acento) 10%, transparent);
+    }
+    .sidebar__foot {
+      position: absolute;
+      right: 16px;
+      bottom: 20px;
+      left: 16px;
+      padding: 12px;
+      border: 1px solid var(--borde);
+      border-radius: 11px;
+      color: var(--suave);
+      background: var(--superficie);
+      font-size: .72rem;
+    }
+    .sidebar__foot strong { display: block; color: var(--texto); font-size: .78rem; }
 
-    .encabezado__fila {
+    .main { min-height: 100vh; margin-left: var(--sidebar); padding: 28px 30px 108px; }
+    .contenedor { width: min(1180px, 100%); margin: 0 auto; }
+    .topbar {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 24px;
       margin-bottom: 24px;
     }
-
-    .marca__etiqueta {
+    .eyebrow {
       margin: 0 0 4px;
       color: var(--acento);
-      font-size: 0.78rem;
-      font-weight: 800;
-      letter-spacing: 0.16em;
+      font-size: .72rem;
+      font-weight: 850;
+      letter-spacing: .15em;
       text-transform: uppercase;
     }
-
-    .marca__titulo {
+    .page-title {
       margin: 0;
-      font-size: clamp(1.8rem, 5vw, 3rem);
-      letter-spacing: -0.04em;
-      line-height: 1.05;
+      font-size: clamp(1.75rem, 4vw, 2.7rem);
+      letter-spacing: -.04em;
+      line-height: 1.07;
     }
+    .page-purpose { max-width: 720px; margin: 8px 0 0; color: var(--suave); font-size: .92rem; }
+    .date { margin: 2px 0 0; color: var(--suave); text-align: right; white-space: nowrap; }
 
-    .fecha {
-      margin: 0;
-      color: var(--texto-suave);
-      text-align: right;
-      white-space: nowrap;
-    }
-
-    .cabecera__resumen {
-      display: grid;
-      justify-items: end;
-      gap: 10px;
-    }
-
-    .contador {
-      min-width: 250px;
-      padding: 12px 15px;
-      border: 1px solid var(--borde);
-      border-radius: 12px;
-      background: var(--superficie);
-      text-align: right;
-    }
-
-    .contador__etiqueta {
-      display: block;
-      margin-bottom: 2px;
-      color: var(--texto-suave);
-      font-size: 0.72rem;
-      font-weight: 750;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .contador__valor {
-      display: block;
-      color: var(--acento);
-      font-size: 1.08rem;
-      font-weight: 800;
-    }
-
-    .contador__fecha {
-      display: block;
-      margin-top: 1px;
-      color: var(--texto-suave);
-      font-size: 0.73rem;
-    }
-
-    /* Prioridades del día: estáticas en este módulo */
-    .prioridades {
-      padding: 20px;
+    .card {
       border: 1px solid var(--borde);
       border-radius: var(--radio);
       background: var(--superficie);
       box-shadow: var(--sombra);
     }
-
-    .seccion__cabecera {
+    .section-card { padding: 20px; }
+    .section-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      margin-bottom: 14px;
+      margin-bottom: 15px;
     }
-
-    .seccion__titulo {
-      margin: 0;
-      font-size: 1rem;
-      letter-spacing: 0.01em;
+    .section-title { margin: 0; font-size: 1rem; }
+    .section-help { margin: 0; color: var(--suave); font-size: .8rem; }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      border: 1px solid var(--borde);
+      border-radius: 999px;
+      color: var(--suave);
+      background: var(--superficie-2);
+      font-size: .7rem;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
     }
-
-    .seccion__ayuda {
-      margin: 0;
-      color: var(--texto-suave);
-      font-size: 0.82rem;
+    .status::before {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      content: "";
     }
+    .status--active { border-color: color-mix(in srgb, var(--verde) 45%, var(--borde)); color: var(--verde); }
+    .status--build { border-color: color-mix(in srgb, var(--amarillo) 45%, var(--borde)); color: var(--amarillo); }
 
-    .prioridades__lista {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .prioridad {
+    .priorities { margin-bottom: 22px; }
+    .priority-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .priority {
       display: flex;
       align-items: center;
-      min-height: 52px;
+      min-height: 54px;
       gap: 10px;
-      padding: 12px 14px;
+      padding: 10px 13px;
       border: 1px solid var(--borde);
       border-radius: 12px;
-      background: var(--superficie-secundaria);
+      background: var(--superficie-2);
     }
-
-    .prioridad input {
-      width: 18px;
-      height: 18px;
+    .priority input[type="checkbox"] {
+      flex: 0 0 auto;
+      width: 19px;
+      height: 19px;
       margin: 0;
       accent-color: var(--acento);
       cursor: pointer;
     }
-
-    .prioridad span {
+    .priority input[type="text"] {
+      width: 100%;
+      min-width: 0;
+      padding: 3px 0;
+      border: 0;
+      border-bottom: 1px solid transparent;
       color: var(--texto);
-      font-size: 0.92rem;
+      background: transparent;
+      outline: none;
     }
+    .priority input[type="text"]:focus { border-color: var(--acento); }
+    .priority--done input[type="text"] { color: var(--suave); text-decoration: line-through; }
 
-    /* Panel de frentes */
-    main {
-      padding: 8px 0 118px;
+    .metric-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .quick-metric { padding: 16px; }
+    .quick-metric__label { display: block; color: var(--suave); font-size: .74rem; }
+    .quick-metric__value { display: block; margin-top: 5px; font-size: 1.5rem; font-weight: 800; letter-spacing: -.03em; }
+    .quick-metric__meta { display: block; margin-top: 3px; color: var(--suave); font-size: .7rem; }
+    .quick-metric__value--ok { color: var(--verde); }
+    .quick-metric__value--warn { color: var(--amarillo); }
+
+    .panel-head { margin: 0 0 15px; }
+    .panel-title { margin: 0 0 3px; font-size: 1.15rem; }
+    .panel-subtitle { margin: 0; color: var(--suave); font-size: .86rem; }
+    .front-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .front-card {
+      --state-color: var(--amarillo);
+      min-height: 264px;
+      padding: 21px;
+      border-left: 5px solid var(--state-color);
     }
-
-    .panel__cabecera {
-      margin-bottom: 16px;
-    }
-
-    .panel__titulo {
-      margin: 0 0 3px;
-      font-size: 1.2rem;
-    }
-
-    .panel__subtitulo {
-      margin: 0;
-      color: var(--texto-suave);
-      font-size: 0.9rem;
-    }
-
-    .grid-frentes {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
-    }
-
-    .tarjeta {
-      position: relative;
-      overflow: hidden;
-      min-height: 270px;
-      padding: 22px;
-      border: 1px solid var(--color-estado);
-      border-left-width: 5px;
-      border-radius: var(--radio);
-      background: var(--superficie);
-      box-shadow: var(--sombra);
-    }
-
-    .tarjeta--ancha {
-      grid-column: 1 / -1;
-    }
-
-    .tarjeta--verde {
-      --color-estado: var(--verde);
-    }
-
-    .tarjeta--amarillo {
-      --color-estado: var(--amarillo);
-    }
-
-    .tarjeta--rojo {
-      --color-estado: var(--rojo);
-    }
-
-    .tarjeta__cabecera {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-
-    .tarjeta__titulo {
-      margin: 0;
-      font-size: 1.15rem;
-    }
-
-    .estado {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 5px 9px;
-      border: 1px solid color-mix(in srgb, var(--color-estado) 48%, transparent);
-      border-radius: 999px;
-      color: var(--color-estado);
-      background: color-mix(in srgb, var(--color-estado) 10%, transparent);
-      font-size: 0.75rem;
-      font-weight: 800;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-    }
-
-    .estado__punto {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: currentColor;
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-estado) 18%, transparent);
-    }
-
-    .control-semaforo {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      margin: -8px 0 18px;
-    }
-
-    .control-semaforo__etiqueta {
-      margin-right: 3px;
-      color: var(--texto-suave);
-      font-size: 0.74rem;
-    }
-
-    .opcion-estado {
+    .front-card--wide { grid-column: 1 / -1; }
+    .front-card--verde { --state-color: var(--verde); }
+    .front-card--amarillo { --state-color: var(--amarillo); }
+    .front-card--rojo { --state-color: var(--rojo); }
+    .front-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 17px; }
+    .front-title { margin: 0; font-size: 1.05rem; }
+    .state-pill {
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      padding: 5px 9px;
+      border: 1px solid color-mix(in srgb, var(--state-color) 48%, transparent);
+      border-radius: 999px;
+      color: var(--state-color);
+      background: color-mix(in srgb, var(--state-color) 10%, transparent);
+      font-size: .68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .state-pill::before { width: 8px; height: 8px; border-radius: 50%; background: currentColor; content: ""; }
+    .state-control { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }
+    .state-control__label { margin-right: 2px; color: var(--suave); font-size: .72rem; }
+    .state-button {
+      --option-color: var(--suave);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
       min-height: 32px;
       padding: 6px 9px;
       border: 1px solid var(--borde);
       border-radius: 9px;
-      color: var(--texto-suave);
-      background: var(--superficie-secundaria);
-      font-size: 0.72rem;
+      color: var(--suave);
+      background: var(--superficie-2);
+      font-size: .7rem;
       font-weight: 700;
       cursor: pointer;
     }
+    .state-button::before { width: 8px; height: 8px; border-radius: 50%; background: var(--option-color); content: ""; }
+    .state-button--verde { --option-color: var(--verde); }
+    .state-button--amarillo { --option-color: var(--amarillo); }
+    .state-button--rojo { --option-color: var(--rojo); }
+    .state-button[aria-pressed="true"] {
+      border-color: var(--option-color);
+      color: var(--option-color);
+      background: color-mix(in srgb, var(--option-color) 12%, var(--superficie-2));
+    }
+    .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-bottom: 16px; }
+    .metric { min-width: 0; padding: 12px; border: 1px solid var(--borde); border-radius: 11px; background: var(--superficie-2); }
+    .metric__label { display: block; overflow: hidden; color: var(--suave); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+    .metric__value { display: block; margin-top: 3px; font-size: 1.18rem; font-weight: 750; }
+    .note { margin: 0; padding-top: 13px; border-top: 1px solid var(--borde); color: var(--suave); font-size: .82rem; }
+    .note strong { color: var(--texto); }
 
-    .opcion-estado:hover,
-    .opcion-estado:focus-visible {
-      border-color: var(--color-opcion);
+    .module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .module-card { display: flex; flex-direction: column; min-height: 205px; padding: 19px; }
+    .module-card__kicker { color: var(--acento); font-size: .7rem; font-weight: 800; text-transform: uppercase; }
+    .module-card h3 { margin: 9px 0 6px; font-size: 1.05rem; }
+    .module-card p { margin: 0; color: var(--suave); font-size: .84rem; }
+    .module-card .button { margin-top: auto; align-self: flex-start; }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 9px 14px;
+      border: 1px solid var(--borde);
+      border-radius: 10px;
       color: var(--texto);
+      background: var(--superficie-2);
+      font-weight: 700;
+      font-size: .82rem;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .button:hover, .button:focus-visible { border-color: var(--acento); outline: none; }
+    .button--primary { border-color: var(--acento); color: #111; background: var(--acento); }
+    .button--danger { border-color: color-mix(in srgb, var(--rojo) 55%, var(--borde)); color: var(--rojo); }
+
+    .field-shell { max-width: 880px; margin: 0 auto; }
+    .field-progress { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }
+    .field-step {
+      padding: 10px;
+      border: 1px solid var(--borde);
+      border-radius: 10px;
+      color: var(--suave);
+      background: var(--superficie);
+      text-align: center;
+      font-size: .76rem;
+      font-weight: 750;
+    }
+    .field-step--active { border-color: var(--acento); color: var(--acento-2); }
+    .field-card { padding: clamp(18px, 4vw, 30px); }
+    .field-card h2 { margin: 0 0 5px; font-size: 1.35rem; }
+    .field-card > p { margin: 0 0 22px; color: var(--suave); }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .field { display: grid; gap: 7px; }
+    .field--wide { grid-column: 1 / -1; }
+    .field label { color: var(--suave); font-size: .8rem; font-weight: 700; }
+    .input {
+      width: 100%;
+      min-height: 52px;
+      padding: 12px 14px;
+      border: 1px solid var(--borde);
+      border-radius: 11px;
+      color: var(--texto);
+      background: var(--superficie-2);
       outline: none;
     }
-
-    .opcion-estado[aria-pressed="true"] {
-      border-color: var(--color-opcion);
-      color: var(--color-opcion);
-      background: color-mix(in srgb, var(--color-opcion) 12%, var(--superficie-secundaria));
-    }
-
-    .opcion-estado--verde {
-      --color-opcion: var(--verde);
-    }
-
-    .opcion-estado--amarillo {
-      --color-opcion: var(--amarillo);
-    }
-
-    .opcion-estado--rojo {
-      --color-opcion: var(--rojo);
-    }
-
-    .opcion-estado__punto {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--color-opcion);
-    }
-
-    .metricas {
+    textarea.input { min-height: 112px; resize: vertical; }
+    .input:focus { border-color: var(--acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 13%, transparent); }
+    .photo-zone {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin: 0 0 18px;
-    }
-
-    .metrica {
-      min-width: 0;
-      padding: 13px;
-      border: 1px solid var(--borde);
+      min-height: 118px;
+      place-items: center;
+      padding: 18px;
+      border: 1px dashed color-mix(in srgb, var(--acento) 55%, var(--borde));
       border-radius: 12px;
-      background: var(--superficie-secundaria);
+      color: var(--suave);
+      background: color-mix(in srgb, var(--acento) 5%, var(--superficie-2));
+      text-align: center;
+      cursor: pointer;
     }
+    .photo-zone strong { display: block; color: var(--texto); }
+    .field-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; }
+    .field-actions .button { min-height: 52px; padding-inline: 20px; font-size: .9rem; }
 
-    .metrica__etiqueta {
-      display: block;
-      overflow: hidden;
-      margin-bottom: 4px;
-      color: var(--texto-suave);
-      font-size: 0.75rem;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--borde); border-radius: var(--radio); background: var(--superficie); }
+    table { width: 100%; border-collapse: collapse; min-width: 700px; }
+    th, td { padding: 14px 16px; border-bottom: 1px solid var(--borde); text-align: left; font-size: .82rem; }
+    th { color: var(--suave); background: var(--superficie-2); font-size: .7rem; letter-spacing: .05em; text-transform: uppercase; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .table-title { color: var(--texto); font-weight: 750; }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .search { width: min(390px, 100%); min-height: 43px; padding: 10px 13px; border: 1px solid var(--borde); border-radius: 10px; color: var(--texto); background: var(--superficie); outline: none; }
+    .search:focus { border-color: var(--acento); }
+    .empty { padding: 36px 20px; color: var(--suave); text-align: center; }
 
-    .metrica__valor {
-      display: block;
-      font-size: 1.25rem;
-      font-weight: 750;
-      letter-spacing: -0.02em;
-    }
+    .report-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; }
+    .report { padding: 20px; }
+    .report__label { color: var(--suave); font-size: .76rem; }
+    .report__value { display: block; margin-top: 7px; font-size: 1.75rem; font-weight: 850; }
+    .report__detail { margin: 7px 0 0; color: var(--suave); font-size: .78rem; }
 
-    .nota {
-      margin: auto 0 0;
-      padding-top: 14px;
-      border-top: 1px solid var(--borde);
-      color: var(--texto-suave);
-      font-size: 0.86rem;
-    }
-
-    .nota strong {
-      color: var(--texto);
-      font-weight: 650;
-    }
-
-    /* Barra inferior de accesos directos */
-    .barra-accesos {
+    .quickbar {
       position: fixed;
       right: 0;
       bottom: 0;
-      left: 0;
-      z-index: 10;
-      padding: 12px 0;
+      left: var(--sidebar);
+      z-index: 20;
+      padding: 11px 30px;
       border-top: 1px solid var(--borde);
-      background: rgba(11, 14, 20, 0.94);
+      background: rgba(11, 14, 20, .94);
       backdrop-filter: blur(14px);
     }
-
-    .barra-accesos__contenido {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-
-    .barra-accesos__contenido::-webkit-scrollbar {
-      display: none;
-    }
-
-    .acceso {
-      flex: 0 0 auto;
-      padding: 9px 13px;
-      border: 1px solid var(--borde);
-      border-radius: 10px;
-      color: var(--texto);
-      background: var(--superficie);
-      font-size: 0.83rem;
-      text-decoration: none;
-    }
-
-    button.acceso {
-      cursor: pointer;
-    }
-
-    .acceso--respaldo {
-      border-color: color-mix(in srgb, var(--acento) 48%, var(--borde));
-      color: var(--acento);
-    }
-
-    .acceso--primario {
-      border-color: var(--acento);
-      color: #10131a;
-      background: var(--acento);
-      font-weight: 800;
-    }
-
-    .acceso:hover,
-    .acceso:focus-visible {
-      border-color: var(--acento);
-      outline: none;
-    }
-
-    .acceso--titulo {
-      border-color: transparent;
-      color: var(--texto-suave);
-      background: transparent;
-      font-weight: 700;
-      pointer-events: none;
-    }
-
-    .entrada-archivo {
-      position: fixed;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip: rect(0 0 0 0);
-      clip-path: inset(50%);
-      white-space: nowrap;
-    }
-
-    .aviso {
+    .quickbar__content { display: flex; align-items: center; gap: 9px; overflow-x: auto; scrollbar-width: none; }
+    .quickbar__content::-webkit-scrollbar { display: none; }
+    .quick-link { flex: 0 0 auto; padding: 8px 12px; border: 1px solid var(--borde); border-radius: 9px; color: var(--texto); background: var(--superficie); font-size: .78rem; text-decoration: none; cursor: pointer; }
+    .quick-link:hover, .quick-link:focus-visible { border-color: var(--acento); outline: none; }
+    .quick-link--label { border-color: transparent; color: var(--suave); background: transparent; font-weight: 750; pointer-events: none; }
+    .file-input { position: fixed; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    .toast {
       position: fixed;
       right: 20px;
-      bottom: 78px;
-      z-index: 20;
-      max-width: min(360px, calc(100% - 40px));
+      bottom: 74px;
+      z-index: 50;
+      max-width: min(380px, calc(100% - 40px));
       padding: 11px 14px;
-      border: 1px solid var(--borde);
+      border: 1px solid var(--verde);
       border-radius: 10px;
       color: var(--texto);
-      background: var(--superficie-secundaria);
+      background: var(--superficie-2);
       box-shadow: var(--sombra);
-      font-size: 0.84rem;
+      font-size: .82rem;
+    }
+    .toast--error { border-color: var(--rojo); }
+    .menu-button { display: none; }
+
+    @media (max-width: 980px) {
+      :root { --sidebar: 82px; }
+      .sidebar { width: var(--sidebar); padding-inline: 12px; }
+      .brand { justify-content: center; padding-inline: 0; }
+      .brand__copy, .nav__text, .sidebar__foot { display: none; }
+      .nav__link { justify-content: center; padding-inline: 8px; }
+      .nav__icon { width: auto; font-size: 1.05rem; }
+      .module-grid, .report-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metric-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
-    .aviso--exito {
-      border-color: var(--verde);
-    }
-
-    .aviso--error {
-      border-color: var(--rojo);
-    }
-
-    /* Ajustes para tablet y teléfono */
-    @media (max-width: 760px) {
-      .contenedor {
-        width: min(100% - 24px, 1180px);
+    @media (max-width: 720px) {
+      :root { --sidebar: 0px; }
+      .sidebar {
+        width: min(288px, 86vw);
+        transform: translateX(-102%);
+        transition: transform .2s ease;
+        box-shadow: 20px 0 50px rgba(0,0,0,.35);
       }
-
-      .encabezado {
-        padding-top: 24px;
+      .sidebar--open { transform: translateX(0); }
+      .brand { justify-content: flex-start; padding-inline: 8px; }
+      .brand__copy, .nav__text, .sidebar__foot { display: block; }
+      .nav__link { justify-content: flex-start; padding-inline: 12px; }
+      .nav__icon { width: 24px; }
+      .main { margin-left: 0; padding: 20px 16px 118px; }
+      .quickbar { left: 0; padding-inline: 16px; }
+      .menu-button {
+        display: inline-grid;
+        flex: 0 0 auto;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border: 1px solid var(--borde);
+        border-radius: 10px;
+        color: var(--texto);
+        background: var(--superficie);
+        cursor: pointer;
       }
-
-      .encabezado__fila {
-        display: block;
-      }
-
-      .fecha {
-        margin-top: 10px;
-        text-align: left;
-      }
-
-      .cabecera__resumen {
-        justify-items: start;
-        margin-top: 16px;
-      }
-
-      .contador {
-        width: 100%;
-        min-width: 0;
-        text-align: left;
-      }
-
-      .prioridades__lista,
-      .grid-frentes {
-        grid-template-columns: 1fr;
-      }
-
-      .tarjeta--ancha {
-        grid-column: auto;
-      }
+      .topbar { gap: 12px; }
+      .topbar__title { display: flex; align-items: flex-start; gap: 11px; }
+      .date { display: none; }
+      .priority-grid, .front-grid, .module-grid, .report-grid, .form-grid { grid-template-columns: 1fr; }
+      .front-card--wide, .field--wide { grid-column: auto; }
+      .toolbar { align-items: stretch; flex-direction: column; }
+      .search { width: 100%; }
     }
 
     @media (max-width: 460px) {
-      .seccion__cabecera,
-      .tarjeta__cabecera {
-        align-items: flex-start;
-      }
-
-      .seccion__ayuda {
-        display: none;
-      }
-
-      .tarjeta {
-        min-height: 0;
-        padding: 18px;
-      }
-
-      .metricas {
-        grid-template-columns: 1fr;
-      }
-
-      .metrica__etiqueta {
-        white-space: normal;
-      }
-
-      .control-semaforo {
-        align-items: stretch;
-        flex-wrap: wrap;
-      }
-
-      .control-semaforo__etiqueta {
-        width: 100%;
-      }
+      .metric-strip { grid-template-columns: 1fr 1fr; }
+      .quick-metric { padding: 13px; }
+      .quick-metric__value { font-size: 1.25rem; }
+      .metrics { grid-template-columns: 1fr; }
+      .metric__label { white-space: normal; }
+      .section-head, .field-actions { align-items: stretch; flex-direction: column; }
+      .field-actions .button { width: 100%; }
     }
   </style>
 </head>
 <body>
-  <header class="encabezado">
-    <div class="contenedor">
-      <div class="encabezado__fila">
-        <div class="marca">
-          <p class="marca__etiqueta">JOE OS · PILAR 2</p>
-          <h1 class="marca__titulo">Mission Control</h1>
-        </div>
-        <div class="cabecera__resumen">
-          <p class="fecha" id="fecha-actual"></p>
-          <aside class="contador" aria-label="Cuenta regresiva para la reubicación a México">
-            <span class="contador__etiqueta">Reubicación a México</span>
-            <strong class="contador__valor" id="contador-reubicacion">Calculando…</strong>
-            <span class="contador__fecha">Meta: 15 de diciembre de 2026</span>
-          </aside>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand__mark" aria-hidden="true">G</div>
+        <div class="brand__copy">
+          <p class="brand__eyebrow">Guardián</p>
+          <h1 class="brand__name">Guardian Ops</h1>
         </div>
       </div>
-
-      <section class="prioridades" aria-labelledby="titulo-prioridades">
-        <div class="seccion__cabecera">
-          <h2 class="seccion__titulo" id="titulo-prioridades">3 Prioridades de Hoy</h2>
-          <p class="seccion__ayuda">Tus avances se guardan automáticamente</p>
-        </div>
-        <div class="prioridades__lista" id="lista-prioridades"></div>
-      </section>
-    </div>
-  </header>
-
-  <main>
-    <div class="contenedor">
-      <div class="panel__cabecera">
-        <h2 class="panel__titulo">Frentes activos</h2>
-        <p class="panel__subtitulo">Información cargada desde el estado local del tablero.</p>
+      <nav class="nav" aria-label="Módulos de Guardian Ops">
+        <a class="nav__link" data-route="/holding" href="/holding"><span class="nav__icon">⌂</span><span class="nav__text">Holding</span></a>
+        <a class="nav__link" data-route="/holding/mission-control" href="/holding/mission-control"><span class="nav__icon">◫</span><span class="nav__text">Mission Control</span></a>
+        <a class="nav__link" data-route="/holding/campo" href="/holding/campo"><span class="nav__icon">✎</span><span class="nav__text">Campo</span></a>
+        <a class="nav__link" data-route="/holding/crm" href="/holding/crm"><span class="nav__icon">◎</span><span class="nav__text">CRM</span></a>
+        <a class="nav__link" data-route="/holding/cotizaciones" href="/holding/cotizaciones"><span class="nav__icon">$</span><span class="nav__text">Cotizaciones</span></a>
+        <a class="nav__link" data-route="/holding/aprobaciones" href="/holding/aprobaciones"><span class="nav__icon">✓</span><span class="nav__text">Aprobaciones</span></a>
+        <a class="nav__link" data-route="/holding/reportes" href="/holding/reportes"><span class="nav__icon">↗</span><span class="nav__text">Reportes</span></a>
+      </nav>
+      <div class="sidebar__foot">
+        <strong>Shell operativa · Fase 1</strong>
+        Datos locales en este dispositivo
       </div>
+    </aside>
 
-      <section class="grid-frentes" id="grid-frentes" aria-label="Resumen de frentes de negocio"></section>
-    </div>
-  </main>
+    <main class="main">
+      <div class="contenedor" id="vista"></div>
+    </main>
 
-  <nav class="barra-accesos" aria-label="Accesos directos">
-    <div class="contenedor barra-accesos__contenido">
-      <span class="acceso acceso--titulo">Accesos</span>
-      <a class="acceso acceso--primario" href="https://docs.google.com/spreadsheets/d/11t7qh7tnS6za21FAfa9ZCeG3r0hnB7uFmqUkZLK0d2E/edit?gid=1874554233#gid=1874554233" target="_blank" rel="noopener noreferrer">IR AL HOLDING MAESTRO</a>
-      <button class="acceso acceso--respaldo" id="boton-exportar" type="button">Exportar Datos</button>
-      <button class="acceso acceso--respaldo" id="boton-importar" type="button">Importar Datos</button>
-      <a class="acceso" href="#">Obsidian</a>
-      <a class="acceso" href="https://wa.me/523312498283" target="_blank" rel="noopener noreferrer">WhatsApp · +52 33 1249 8283</a>
-      <a class="acceso" href="#">Trading</a>
-      <a class="acceso" href="#">TikTok Shop</a>
-      <a class="acceso" href="https://drive.google.com" target="_blank" rel="noopener noreferrer">Google Drive</a>
-    </div>
-  </nav>
-  <input class="entrada-archivo" id="entrada-importar" type="file" accept="application/json,.json">
-  <div class="aviso" id="aviso" role="status" aria-live="polite" hidden></div>
+    <nav class="quickbar" aria-label="Accesos rápidos">
+      <div class="quickbar__content">
+        <span class="quick-link quick-link--label">Accesos</span>
+        <button class="quick-link" id="exportar" type="button">Exportar datos</button>
+        <button class="quick-link" id="importar" type="button">Importar datos</button>
+        <a class="quick-link" href="https://wa.me/523312498283" target="_blank" rel="noopener noreferrer">WhatsApp · Casa Kiraz</a>
+        <a class="quick-link" href="https://drive.google.com" target="_blank" rel="noopener noreferrer">Google Drive</a>
+      </div>
+    </nav>
+  </div>
+
+  <input class="file-input" id="archivo-importar" type="file" accept="application/json,.json">
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script>
-    /* ==========================================================
-       MISSION CONTROL v1 · LÓGICA FINAL CONSOLIDADA
-       Estado, semáforos, contador, persistencia y respaldos JSON.
-       ========================================================== */
-
     const CLAVE_ALMACENAMIENTO = "joe_os_mission_control_v1";
-    const ZONA_HORARIA_OPERATIVA = "America/Mexico_City";
+    const RUTAS = [
+      "/holding",
+      "/holding/mission-control",
+      "/holding/campo",
+      "/holding/crm",
+      "/holding/cotizaciones",
+      "/holding/aprobaciones",
+      "/holding/reportes"
+    ];
 
-    // Estado inicial usado únicamente la primera vez que se abre el tablero.
     const estadoInicial = {
-      version: 2,
+      version: 3,
       prioridades: [
         { id: 1, texto: "Revisar agenda de Casa Kiraz", completada: false },
         { id: 2, texto: "Evaluar candidatos de TikTok Shop", completada: false },
@@ -666,393 +569,445 @@
           metricas: { prioridades_completadas_semana: 2, automatizaciones_activas: 4, automatizaciones_caidas: 0 },
           nota: "Falta cerrar una prioridad semanal."
         }
-      }
+      },
+      campo: { borrador: {}, guardados: [] }
     };
 
-    // Configuración visual separada: los valores reales permanecen en estado.frentes.
     const configuracionMetricas = {
-      casa_kiraz: [
-        ["citas_semana", "Citas esta semana", "numero"],
-        ["meta_citas", "Meta de citas", "numero"],
-        ["caja_semana", "Caja semanal", "moneda"]
-      ],
-      tiktok_shop: [
-        ["candidatos_pipeline", "Candidatos", "numero"],
-        ["productos_en_test", "Productos en test", "numero"],
-        ["ventas_validadas", "Ventas validadas", "numero"]
-      ],
-      trading: [
-        ["pnl_semana", "P&L semanal", "resultado"],
-        ["reglas_cumplidas_pct", "Reglas cumplidas", "porcentaje"],
-        ["drawdown_pct", "Drawdown", "porcentaje"],
-        ["drawdown_limite", "Límite de drawdown", "porcentaje"]
-      ],
-      real_estate_e2: [
-        ["candidatos_evaluados_mes", "Evaluados este mes", "numero"],
-        ["en_analisis_profundo", "Análisis profundo", "numero"],
-        ["dias_desde_ultimo_barrido", "Días desde barrido", "numero"]
-      ],
-      sistema: [
-        ["prioridades_completadas_semana", "Prioridades completadas", "numero"],
-        ["automatizaciones_activas", "Automatizaciones activas", "numero"],
-        ["automatizaciones_caidas", "Automatizaciones caídas", "numero"]
-      ]
+      casa_kiraz: [["citas_semana", "Citas esta semana", "numero"], ["meta_citas", "Meta de citas", "numero"], ["caja_semana", "Caja semanal", "moneda"]],
+      tiktok_shop: [["candidatos_pipeline", "Candidatos", "numero"], ["productos_en_test", "Productos en test", "numero"], ["ventas_validadas", "Ventas validadas", "numero"]],
+      trading: [["pnl_semana", "P&L semanal", "resultado"], ["reglas_cumplidas_pct", "Reglas cumplidas", "porcentaje"], ["drawdown_pct", "Drawdown", "porcentaje"], ["drawdown_limite", "Límite de drawdown", "porcentaje"]],
+      real_estate_e2: [["candidatos_evaluados_mes", "Evaluados este mes", "numero"], ["en_analisis_profundo", "Análisis profundo", "numero"], ["dias_desde_ultimo_barrido", "Días desde barrido", "numero"]],
+      sistema: [["prioridades_completadas_semana", "Prioridades completadas", "numero"], ["automatizaciones_activas", "Automatizaciones activas", "numero"], ["automatizaciones_caidas", "Automatizaciones caídas", "numero"]]
     };
+    const estadosOperativos = { verde: "Operando / Validado", amarillo: "En proceso / En pausa", rojo: "Alerta / Desechado" };
 
-    const estadosOperativos = {
-      verde: "Operando / Validado",
-      amarillo: "En Proceso / En Pausa",
-      rojo: "Alerta / Desechado"
-    };
+    const modulos = [
+      ["Mission Control", "Tablero ejecutivo con prioridades, frentes, semáforos y señales operativas.", "/holding/mission-control", "Activo"],
+      ["Campo", "Captura guiada para visitas, medidas, evidencia y notas desde tablet.", "/holding/campo", "Piloto"],
+      ["CRM", "Seguimiento central de prospectos, clientes y siguiente acción.", "/holding/crm", "En construcción"],
+      ["Cotizaciones", "Bandeja para preparar, revisar y dar seguimiento a propuestas.", "/holding/cotizaciones", "En construcción"],
+      ["Aprobaciones", "Decisiones que requieren autorización humana antes de avanzar.", "/holding/aprobaciones", "En construcción"],
+      ["Reportes", "Indicadores operativos, comerciales y financieros del holding.", "/holding/reportes", "En construcción"]
+    ];
 
-    // Crea una copia independiente para evitar modificar el estado inicial.
-    function copiarEstadoInicial() {
-      return JSON.parse(JSON.stringify(estadoInicial));
-    }
+    function copiaInicial() { return JSON.parse(JSON.stringify(estadoInicial)); }
 
-    // Conserva los datos guardados por el Módulo 2 y migra su semáforo anterior.
-    function normalizarEstado(estadoGuardado) {
-      const base = copiarEstadoInicial();
-      const normalizado = estadoGuardado && typeof estadoGuardado === "object"
-        ? estadoGuardado
-        : base;
-
-      normalizado.version = 2;
-      normalizado.prioridades = Array.isArray(normalizado.prioridades)
-        ? normalizado.prioridades
-        : base.prioridades;
-      normalizado.frentes = normalizado.frentes || base.frentes;
-
-      Object.keys(base.frentes).forEach((claveFrente) => {
-        const frenteBase = base.frentes[claveFrente];
-        const frenteGuardado = normalizado.frentes[claveFrente] || frenteBase;
-        frenteGuardado.semaforo = frenteGuardado.semaforo ||
-          frenteGuardado.semaforo_ejemplo || frenteBase.semaforo;
-        delete frenteGuardado.semaforo_ejemplo;
-        normalizado.frentes[claveFrente] = frenteGuardado;
+    function normalizarEstado(candidato) {
+      const base = copiaInicial();
+      const normal = candidato && typeof candidato === "object" ? candidato : base;
+      normal.version = 3;
+      normal.prioridades = Array.isArray(normal.prioridades) ? normal.prioridades : base.prioridades;
+      normal.frentes = normal.frentes || base.frentes;
+      Object.keys(base.frentes).forEach((clave) => {
+        const guardado = normal.frentes[clave] || base.frentes[clave];
+        guardado.semaforo = guardado.semaforo || guardado.semaforo_ejemplo || base.frentes[clave].semaforo;
+        delete guardado.semaforo_ejemplo;
+        normal.frentes[clave] = { ...base.frentes[clave], ...guardado, metricas: { ...base.frentes[clave].metricas, ...(guardado.metricas || {}) } };
       });
-
-      return normalizado;
+      normal.campo = normal.campo && typeof normal.campo === "object" ? normal.campo : base.campo;
+      normal.campo.borrador = normal.campo.borrador || {};
+      normal.campo.guardados = Array.isArray(normal.campo.guardados) ? normal.campo.guardados : [];
+      return normal;
     }
 
     function cargarEstado() {
       try {
-        const datosGuardados = localStorage.getItem(CLAVE_ALMACENAMIENTO);
-        return normalizarEstado(datosGuardados ? JSON.parse(datosGuardados) : copiarEstadoInicial());
+        const guardado = localStorage.getItem(CLAVE_ALMACENAMIENTO);
+        return normalizarEstado(guardado ? JSON.parse(guardado) : copiaInicial());
       } catch (error) {
-        console.warn("No se pudo leer el estado guardado; se usará el estado inicial.", error);
-        return copiarEstadoInicial();
+        console.warn("No se pudo leer el estado local.", error);
+        return copiaInicial();
       }
     }
 
     let estado = cargarEstado();
+    let temporizadorToast;
+    let pasoCampo = 1;
 
     function guardarEstado() {
-      try {
-        localStorage.setItem(CLAVE_ALMACENAMIENTO, JSON.stringify(estado));
-      } catch (error) {
-        console.error("No se pudo guardar el tablero en este navegador.", error);
-      }
+      try { localStorage.setItem(CLAVE_ALMACENAMIENTO, JSON.stringify(estado)); }
+      catch (error) { mostrarToast("No se pudo guardar en este dispositivo.", "error"); }
     }
 
-    let temporizadorAviso;
-
-    function mostrarAviso(mensaje, tipo = "exito") {
-      const aviso = document.getElementById("aviso");
-      clearTimeout(temporizadorAviso);
-      aviso.textContent = mensaje;
-      aviso.className = `aviso aviso--${tipo}`;
-      aviso.hidden = false;
-      temporizadorAviso = setTimeout(() => {
-        aviso.hidden = true;
-      }, 4200);
+    function mostrarToast(mensaje, tipo = "ok") {
+      const toast = document.getElementById("toast");
+      clearTimeout(temporizadorToast);
+      toast.textContent = mensaje;
+      toast.className = tipo === "error" ? "toast toast--error" : "toast";
+      toast.hidden = false;
+      temporizadorToast = setTimeout(() => { toast.hidden = true; }, 3800);
     }
 
-    function exportarDatos() {
-      const respaldo = {
-        tipo: "JOE_OS_MISSION_CONTROL_RESPALDO",
-        version: 1,
-        exportado_en: new Date().toISOString(),
-        estado
-      };
-      const contenido = JSON.stringify(respaldo, null, 2);
-      const archivo = new Blob([contenido], { type: "application/json" });
-      const enlaceTemporal = URL.createObjectURL(archivo);
-      const enlace = document.createElement("a");
-      const fecha = new Date().toISOString().slice(0, 10);
-
-      enlace.href = enlaceTemporal;
-      enlace.download = `joe-os-respaldo-${fecha}.json`;
-      document.body.appendChild(enlace);
-      enlace.click();
-      enlace.remove();
-      setTimeout(() => URL.revokeObjectURL(enlaceTemporal), 1000);
-      mostrarAviso("Respaldo descargado correctamente.");
+    function fechaActual() {
+      const texto = new Intl.DateTimeFormat("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date());
+      return texto.charAt(0).toUpperCase() + texto.slice(1);
     }
 
-    function validarEstadoImportado(candidato) {
-      if (!candidato || typeof candidato !== "object") return false;
-      if (!Array.isArray(candidato.prioridades) || candidato.prioridades.length !== 3) return false;
-      if (!candidato.frentes || typeof candidato.frentes !== "object") return false;
-
-      const prioridadesValidas = candidato.prioridades.every((prioridad) =>
-        prioridad &&
-        typeof prioridad.texto === "string" &&
-        typeof prioridad.completada === "boolean"
-      );
-      if (!prioridadesValidas) return false;
-
-      return Object.keys(estadoInicial.frentes).every((claveFrente) => {
-        const frente = candidato.frentes[claveFrente];
-        const semaforo = frente && (frente.semaforo || frente.semaforo_ejemplo);
-        return frente &&
-          frente.metricas &&
-          typeof frente.metricas === "object" &&
-          typeof frente.nota === "string" &&
-          Object.hasOwn(estadosOperativos, semaforo);
-      });
+    function cabecera(etiqueta, titulo, proposito, estadoModulo = "") {
+      return `
+        <header class="topbar">
+          <div class="topbar__title">
+            <button class="menu-button" id="abrir-menu" type="button" aria-label="Abrir navegación">☰</button>
+            <div>
+              <p class="eyebrow">${etiqueta}</p>
+              <h1 class="page-title">${titulo}</h1>
+              <p class="page-purpose">${proposito}</p>
+            </div>
+          </div>
+          <div>
+            <p class="date">${fechaActual()}</p>
+            ${estadoModulo ? `<p style="text-align:right;margin:10px 0 0"><span class="status ${estadoModulo === "Activo" ? "status--active" : "status--build"}">${estadoModulo}</span></p>` : ""}
+          </div>
+        </header>`;
     }
 
-    async function importarDatos(archivo) {
-      try {
-        const contenido = await archivo.text();
-        const respaldo = JSON.parse(contenido);
-        const candidato = respaldo.estado || respaldo;
-
-        if (!validarEstadoImportado(candidato)) {
-          throw new Error("El archivo no contiene un estado válido de Mission Control.");
-        }
-
-        estado = normalizarEstado(candidato);
-        guardarEstado();
-        renderizarPrioridades();
-        renderizarFrentes();
-        mostrarAviso("Datos restaurados correctamente.");
-      } catch (error) {
-        console.error("No se pudo importar el respaldo.", error);
-        mostrarAviso("No se pudo importar: selecciona un respaldo JSON válido.", "error");
-      }
-    }
-
-    function formatearValor(valor, formato) {
+    function formatear(valor, formato) {
       const numero = Number(valor);
-
-      if (formato === "moneda") {
-        return new Intl.NumberFormat("es-MX", {
-          style: "currency",
-          currency: "MXN",
-          maximumFractionDigits: 0
-        }).format(numero);
-      }
-
+      if (formato === "moneda") return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(numero);
       if (formato === "porcentaje") return `${numero}%`;
       if (formato === "resultado") return `${numero > 0 ? "+" : ""}$${numero.toLocaleString("es-MX")}`;
       return numero.toLocaleString("es-MX");
     }
 
-    function obtenerFechaOperativa() {
-      const partes = new Intl.DateTimeFormat("en-CA", {
-        timeZone: ZONA_HORARIA_OPERATIVA,
-        year: "numeric",
-        month: "numeric",
-        day: "numeric"
-      }).formatToParts(new Date());
-      const valores = Object.fromEntries(partes.map((parte) => [parte.type, parte.value]));
-
-      return new Date(Number(valores.year), Number(valores.month) - 1, Number(valores.day));
+    function renderHolding() {
+      return `
+        ${cabecera("GUARDIAN OPS · FASE 1", "Holding", "Contenedor general de la operación. Desde aquí se entra a una sola app con módulos conectados.", "Activo")}
+        <section class="metric-strip" aria-label="Resumen del holding">
+          <article class="card quick-metric"><span class="quick-metric__label">Módulos habilitados</span><strong class="quick-metric__value">7</strong><span class="quick-metric__meta">Una sola aplicación</span></article>
+          <article class="card quick-metric"><span class="quick-metric__label">Capturas de campo</span><strong class="quick-metric__value">${estado.campo.guardados.length}</strong><span class="quick-metric__meta">Guardadas localmente</span></article>
+          <article class="card quick-metric"><span class="quick-metric__label">Automatizaciones</span><strong class="quick-metric__value quick-metric__value--ok">${estado.frentes.sistema.metricas.automatizaciones_activas}</strong><span class="quick-metric__meta">Activas</span></article>
+          <article class="card quick-metric"><span class="quick-metric__label">Alertas</span><strong class="quick-metric__value quick-metric__value--warn">${Object.values(estado.frentes).filter(f => f.semaforo !== "verde").length}</strong><span class="quick-metric__meta">Frentes por atender</span></article>
+        </section>
+        <div class="panel-head"><h2 class="panel-title">Módulos operativos</h2><p class="panel-subtitle">Arquitectura modular sin separar la app.</p></div>
+        <section class="module-grid">
+          ${modulos.map(([nombre, descripcion, ruta, status]) => `
+            <article class="card module-card">
+              <span class="module-card__kicker">${status}</span>
+              <h3>${nombre}</h3><p>${descripcion}</p>
+              <a class="button" data-route-link href="${ruta}">Abrir módulo</a>
+            </article>`).join("")}
+        </section>`;
     }
 
-    function mostrarFechaActual() {
-      const fecha = new Intl.DateTimeFormat("es-MX", {
-        timeZone: ZONA_HORARIA_OPERATIVA,
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric"
-      }).format(new Date());
-
-      document.getElementById("fecha-actual").textContent =
-        `${fecha.charAt(0).toUpperCase() + fecha.slice(1)} · Guadalajara, MX`;
+    function renderPrioridades() {
+      return estado.prioridades.map((p, indice) => `
+        <label class="priority ${p.completada ? "priority--done" : ""}">
+          <input type="checkbox" data-prioridad-check="${indice}" ${p.completada ? "checked" : ""}>
+          <input type="text" data-prioridad-texto="${indice}" value="${escaparAtributo(p.texto)}" aria-label="Texto de prioridad ${indice + 1}">
+        </label>`).join("");
     }
 
-    function sumarMeses(fecha, cantidad) {
-      return new Date(fecha.getFullYear(), fecha.getMonth() + cantidad, fecha.getDate());
+    function renderFrentes() {
+      return Object.entries(estado.frentes).map(([clave, frente]) => `
+        <article class="card front-card front-card--${frente.semaforo} ${clave === "sistema" ? "front-card--wide" : ""}">
+          <div class="front-head"><h3 class="front-title">${frente.nombre}</h3><span class="state-pill">${frente.semaforo}</span></div>
+          <div class="state-control" role="group" aria-label="Estado de ${frente.nombre}">
+            <span class="state-control__label">Estado operativo:</span>
+            ${Object.keys(estadosOperativos).map(color => `<button class="state-button state-button--${color}" data-frente="${clave}" data-color="${color}" aria-pressed="${color === frente.semaforo}" type="button">${color}</button>`).join("")}
+          </div>
+          <div class="metrics">
+            ${configuracionMetricas[clave].map(([campo, etiqueta, formato]) => `<div class="metric"><span class="metric__label">${etiqueta}</span><strong class="metric__value">${formatear(frente.metricas[campo], formato)}</strong></div>`).join("")}
+          </div>
+          <p class="note"><strong>Nota:</strong> ${frente.nota}</p>
+        </article>`).join("");
     }
 
-    function actualizarContadorReubicacion() {
-      const hoy = obtenerFechaOperativa();
-      const fechaObjetivo = new Date(2026, 11, 15);
-      const elemento = document.getElementById("contador-reubicacion");
+    function renderMissionControl() {
+      const caidas = estado.frentes.sistema.metricas.automatizaciones_caidas;
+      return `
+        ${cabecera("HOLDING · TABLERO EJECUTIVO", "Mission Control", "La vista original se conserva como centro ejecutivo, ahora preparada para recibir señales de toda la operación.", "Activo")}
+        <section class="card section-card priorities">
+          <div class="section-head"><h2 class="section-title">3 Prioridades de Hoy</h2><p class="section-help">Editables · guardado automático</p></div>
+          <div class="priority-grid">${renderPrioridades()}</div>
+        </section>
+        <section class="metric-strip" aria-label="Señales operativas preparadas">
+          <article class="card quick-metric"><span class="quick-metric__label">Cotizaciones pendientes</span><strong class="quick-metric__value">0</strong><span class="quick-metric__meta">Conexión en siguiente fase</span></article>
+          <article class="card quick-metric"><span class="quick-metric__label">Aprobaciones pendientes</span><strong class="quick-metric__value">0</strong><span class="quick-metric__meta">Sin bloqueos actuales</span></article>
+          <article class="card quick-metric"><span class="quick-metric__label">Visitas de campo</span><strong class="quick-metric__value">${estado.campo.guardados.length}</strong><span class="quick-metric__meta">Capturas guardadas</span></article>
+          <article class="card quick-metric"><span class="quick-metric__label">Automatizaciones</span><strong class="quick-metric__value ${caidas ? "quick-metric__value--warn" : "quick-metric__value--ok"}">${caidas ? `${caidas} caídas` : "Estables"}</strong><span class="quick-metric__meta">${estado.frentes.sistema.metricas.automatizaciones_activas} activas</span></article>
+        </section>
+        <div class="panel-head"><h2 class="panel-title">Frentes activos</h2><p class="panel-subtitle">Semáforos manuales conservados de Mission Control v1.</p></div>
+        <section class="front-grid">${renderFrentes()}</section>`;
+    }
 
-      if (hoy >= fechaObjetivo) {
-        elemento.textContent = "Meta alcanzada";
-        return;
+    function escaparAtributo(valor = "") {
+      return String(valor).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+    }
+
+    function pasoCampoUno(b) {
+      return `
+        <div class="form-grid">
+          <div class="field"><label for="campo-cliente">Cliente o prospecto</label><input class="input" id="campo-cliente" data-campo="cliente" value="${escaparAtributo(b.cliente)}" autocomplete="name" placeholder="Nombre completo"></div>
+          <div class="field"><label for="campo-telefono">Teléfono</label><input class="input" id="campo-telefono" data-campo="telefono" value="${escaparAtributo(b.telefono)}" inputmode="tel" autocomplete="tel" placeholder="33 0000 0000"></div>
+          <div class="field field--wide"><label for="campo-direccion">Dirección de la visita</label><input class="input" id="campo-direccion" data-campo="direccion" value="${escaparAtributo(b.direccion)}" autocomplete="street-address" placeholder="Calle, número, colonia y municipio"></div>
+          <div class="field field--wide"><label for="campo-servicio">Servicio solicitado</label>
+            <select class="input" id="campo-servicio" data-campo="servicio">
+              <option value="">Seleccionar servicio</option>
+              ${["Portón / automatización", "Pérgola", "Solar Care", "Hidrolavado", "Diagnóstico express", "Otro"].map(x => `<option ${b.servicio === x ? "selected" : ""}>${x}</option>`).join("")}
+            </select>
+          </div>
+        </div>`;
+    }
+
+    function pasoCampoDos(b) {
+      return `
+        <div class="form-grid">
+          <div class="field"><label for="campo-ancho">Ancho aproximado (m)</label><input class="input" id="campo-ancho" data-campo="ancho" value="${escaparAtributo(b.ancho)}" inputmode="decimal" placeholder="0.00"></div>
+          <div class="field"><label for="campo-alto">Alto aproximado (m)</label><input class="input" id="campo-alto" data-campo="alto" value="${escaparAtributo(b.alto)}" inputmode="decimal" placeholder="0.00"></div>
+          <div class="field field--wide"><label for="campo-condicion">Condición observada</label><textarea class="input" id="campo-condicion" data-campo="condicion" placeholder="Describe estructura, acceso, energía, riesgos y restricciones">${b.condicion || ""}</textarea></div>
+          <label class="photo-zone field--wide" for="campo-fotos"><span><strong>Agregar evidencia fotográfica</strong><span id="fotos-resumen">${b.fotos || "Toca aquí para seleccionar fotos"}</span></span><input class="file-input" id="campo-fotos" type="file" accept="image/*" multiple></label>
+        </div>`;
+    }
+
+    function pasoCampoTres(b) {
+      return `
+        <div class="form-grid">
+          <div class="field field--wide"><label for="campo-notas">Notas para cotización</label><textarea class="input" id="campo-notas" data-campo="notas" placeholder="Alcance, preferencias del cliente, supuestos y siguientes pasos">${b.notas || ""}</textarea></div>
+          <div class="field"><label for="campo-fecha">Fecha sugerida de seguimiento</label><input class="input" id="campo-fecha" data-campo="fechaSeguimiento" value="${escaparAtributo(b.fechaSeguimiento)}" type="date"></div>
+          <div class="field"><label for="campo-responsable">Responsable</label><input class="input" id="campo-responsable" data-campo="responsable" value="${escaparAtributo(b.responsable)}" placeholder="Nombre del técnico"></div>
+        </div>
+        <div class="card" style="margin-top:18px;padding:16px;background:var(--superficie-2)">
+          <strong>Resumen antes de guardar</strong>
+          <p style="margin:7px 0 0;color:var(--suave);font-size:.82rem">${b.cliente || "Sin cliente"} · ${b.servicio || "Sin servicio"} · ${b.direccion || "Sin dirección"}</p>
+        </div>`;
+    }
+
+    function renderCampo() {
+      const b = estado.campo.borrador;
+      const contenido = pasoCampo === 1 ? pasoCampoUno(b) : pasoCampo === 2 ? pasoCampoDos(b) : pasoCampoTres(b);
+      return `
+        <div class="field-shell">
+          ${cabecera("GUARDIÁN · OPERACIÓN EN SITIO", "Campo", "Flujo táctil para que el técnico capture una visita desde tablet sin navegar por un dashboard ejecutivo.", "Piloto")}
+          <div class="field-progress" aria-label="Progreso de captura">
+            <div class="field-step ${pasoCampo === 1 ? "field-step--active" : ""}">1 · Cliente</div>
+            <div class="field-step ${pasoCampo === 2 ? "field-step--active" : ""}">2 · Evidencia</div>
+            <div class="field-step ${pasoCampo === 3 ? "field-step--active" : ""}">3 · Cierre</div>
+          </div>
+          <section class="card field-card">
+            <h2>${["Datos de la visita", "Medidas y evidencia", "Notas y seguimiento"][pasoCampo - 1]}</h2>
+            <p>${["Identifica al cliente, el lugar y el servicio.", "Documenta lo observado antes de cotizar.", "Revisa la captura y déjala lista para oficina."][pasoCampo - 1]}</p>
+            ${contenido}
+            <div class="field-actions">
+              <button class="button" id="campo-atras" type="button">${pasoCampo === 1 ? "Limpiar borrador" : "Anterior"}</button>
+              <button class="button button--primary" id="campo-siguiente" type="button">${pasoCampo === 3 ? "Guardar visita" : "Guardar y continuar"}</button>
+            </div>
+          </section>
+          <p style="color:var(--suave);font-size:.76rem;text-align:center">Borrador guardado automáticamente en este dispositivo.</p>
+        </div>`;
+    }
+
+    const filasCRM = [
+      ["María López", "Zapopan", "Portón / automatización", "Contactar", "Nuevo"],
+      ["Carlos Vega", "Ajijic", "Diagnóstico express", "Agendar visita", "Calificado"],
+      ["Ana Torres", "Solares", "Pérgola", "Esperar medidas", "Seguimiento"]
+    ];
+
+    function renderCRM() {
+      return `
+        ${cabecera("GUARDIÁN · RELACIONES", "CRM", "Base mínima para visualizar prospectos y no perder la siguiente acción comercial.", "En construcción")}
+        <div class="toolbar"><input class="search" id="buscar-crm" type="search" placeholder="Buscar por cliente, zona o servicio…" aria-label="Buscar en CRM"><button class="button button--primary" id="nuevo-registro" type="button">+ Nuevo prospecto</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Zona</th><th>Interés</th><th>Siguiente acción</th><th>Estado</th></tr></thead><tbody id="crm-body">${filasCRM.map(f => `<tr>${f.map((c, i) => `<td class="${i === 0 ? "table-title" : ""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    }
+
+    function renderCotizaciones() {
+      return `
+        ${cabecera("GUARDIÁN · PROPUESTAS", "Cotizaciones", "Bandeja preparada para convertir capturas de campo en propuestas revisables.", "En construcción")}
+        <section class="metric-strip">
+          <article class="card quick-metric"><span class="quick-metric__label">Borradores</span><strong class="quick-metric__value">0</strong><span class="quick-metric__meta">Por preparar</span></article>
+          <article class="card quick-metric"><span class="quick-metric__label">En revisión</span><strong class="quick-metric__value">0</strong><span class="quick-metric__meta">Validación interna</span></article>
+          <article class="card quick-metric"><span class="quick-metric__label">Enviadas</span><strong class="quick-metric__value">0</strong><span class="quick-metric__meta">Esperando cliente</span></article>
+          <article class="card quick-metric"><span class="quick-metric__label">Aprobadas</span><strong class="quick-metric__value">0</strong><span class="quick-metric__meta">Listas para anticipo</span></article>
+        </section>
+        <div class="table-wrap"><div class="empty"><strong>No hay cotizaciones todavía.</strong><br>Las capturas de Campo alimentarán esta bandeja en la siguiente fase.</div></div>`;
+    }
+
+    function renderAprobaciones() {
+      return `
+        ${cabecera("HOLDING · CONTROL HUMANO", "Aprobaciones", "Punto de control para decisiones que no deben avanzar automáticamente.", "En construcción")}
+        <section class="card section-card">
+          <div class="section-head"><h2 class="section-title">Bandeja de decisiones</h2><span class="status status--active">Sin pendientes</span></div>
+          <div class="empty"><strong>No hay aprobaciones pendientes.</strong><br>Aquí aparecerán descuentos, márgenes excepcionales, compras y liberaciones críticas.</div>
+        </section>`;
+    }
+
+    function renderReportes() {
+      return `
+        ${cabecera("HOLDING · INTELIGENCIA", "Reportes", "Resumen inicial para medir operación, ventas y disciplina sin confundir estimaciones con resultados reales.", "En construcción")}
+        <section class="report-grid">
+          <article class="card report"><span class="report__label">Visitas capturadas</span><strong class="report__value">${estado.campo.guardados.length}</strong><p class="report__detail">Datos locales de prueba</p></article>
+          <article class="card report"><span class="report__label">Frentes en verde</span><strong class="report__value">${Object.values(estado.frentes).filter(f => f.semaforo === "verde").length}/5</strong><p class="report__detail">Semáforo ejecutivo manual</p></article>
+          <article class="card report"><span class="report__label">Prioridades completas</span><strong class="report__value">${estado.prioridades.filter(p => p.completada).length}/3</strong><p class="report__detail">Avance del día</p></article>
+        </section>
+        <section class="card section-card" style="margin-top:18px">
+          <div class="section-head"><h2 class="section-title">Estado de datos</h2><span class="status status--build">Fase 1</span></div>
+          <p style="margin:0;color:var(--suave)">Las cifras de Guardián en 2026 son supuestos y escenarios de planeación. Las pruebas capturadas aquí se identifican como datos locales; no se presentan como resultados operativos validados.</p>
+        </section>`;
+    }
+
+    function rutaActual() {
+      const limpia = window.location.pathname.replace(/\/+$/, "") || "/";
+      return RUTAS.includes(limpia) ? limpia : "/holding/mission-control";
+    }
+
+    function renderRuta() {
+      const ruta = rutaActual();
+      const vistas = {
+        "/holding": renderHolding,
+        "/holding/mission-control": renderMissionControl,
+        "/holding/campo": renderCampo,
+        "/holding/crm": renderCRM,
+        "/holding/cotizaciones": renderCotizaciones,
+        "/holding/aprobaciones": renderAprobaciones,
+        "/holding/reportes": renderReportes
+      };
+      document.getElementById("vista").innerHTML = vistas[ruta]();
+      document.querySelectorAll(".nav__link").forEach(link => link.setAttribute("aria-current", link.dataset.route === ruta ? "page" : "false"));
+      enlazarVista(ruta);
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+
+    function navegar(ruta) {
+      history.pushState({}, "", ruta);
+      document.getElementById("sidebar").classList.remove("sidebar--open");
+      renderRuta();
+    }
+
+    function enlazarVista(ruta) {
+      const menu = document.getElementById("abrir-menu");
+      if (menu) menu.addEventListener("click", () => document.getElementById("sidebar").classList.toggle("sidebar--open"));
+
+      document.querySelectorAll("[data-route-link]").forEach(link => link.addEventListener("click", (e) => {
+        e.preventDefault();
+        navegar(link.getAttribute("href"));
+      }));
+
+      if (ruta === "/holding/mission-control") {
+        document.querySelectorAll("[data-prioridad-check]").forEach(input => input.addEventListener("change", () => {
+          const indice = Number(input.dataset.prioridadCheck);
+          estado.prioridades[indice].completada = input.checked;
+          guardarEstado();
+          renderRuta();
+        }));
+        document.querySelectorAll("[data-prioridad-texto]").forEach(input => input.addEventListener("input", () => {
+          estado.prioridades[Number(input.dataset.prioridadTexto)].texto = input.value;
+          guardarEstado();
+        }));
+        document.querySelectorAll("[data-frente]").forEach(boton => boton.addEventListener("click", () => {
+          estado.frentes[boton.dataset.frente].semaforo = boton.dataset.color;
+          guardarEstado();
+          renderRuta();
+        }));
       }
 
-      let meses = (fechaObjetivo.getFullYear() - hoy.getFullYear()) * 12 +
-        fechaObjetivo.getMonth() - hoy.getMonth();
-
-      if (sumarMeses(hoy, meses) > fechaObjetivo) meses -= 1;
-
-      const fechaTrasMeses = sumarMeses(hoy, meses);
-      const inicioUTC = Date.UTC(
-        fechaTrasMeses.getFullYear(),
-        fechaTrasMeses.getMonth(),
-        fechaTrasMeses.getDate()
-      );
-      const objetivoUTC = Date.UTC(2026, 11, 15);
-      const dias = Math.round((objetivoUTC - inicioUTC) / 86400000);
-
-      const textoMeses = `${meses} ${meses === 1 ? "mes" : "meses"}`;
-      const textoDias = `${dias} ${dias === 1 ? "día" : "días"}`;
-      elemento.textContent = `${textoMeses} · ${textoDias}`;
+      if (ruta === "/holding/campo") enlazarCampo();
+      if (ruta === "/holding/crm") enlazarCRM();
     }
 
-    function renderizarPrioridades() {
-      const lista = document.getElementById("lista-prioridades");
-      lista.replaceChildren();
+    function guardarBorradorVisible() {
+      document.querySelectorAll("[data-campo]").forEach(campo => { estado.campo.borrador[campo.dataset.campo] = campo.value; });
+      guardarEstado();
+    }
 
-      estado.prioridades.forEach((prioridad) => {
-        const etiqueta = document.createElement("label");
-        etiqueta.className = "prioridad";
-
-        const casilla = document.createElement("input");
-        casilla.type = "checkbox";
-        casilla.checked = Boolean(prioridad.completada);
-        casilla.setAttribute("aria-label", `Completar prioridad: ${prioridad.texto}`);
-        casilla.addEventListener("change", () => {
-          prioridad.completada = casilla.checked;
+    function enlazarCampo() {
+      document.querySelectorAll("[data-campo]").forEach(campo => campo.addEventListener("input", guardarBorradorVisible));
+      const fotos = document.getElementById("campo-fotos");
+      if (fotos) fotos.addEventListener("change", () => {
+        estado.campo.borrador.fotos = fotos.files.length ? `${fotos.files.length} foto${fotos.files.length === 1 ? "" : "s"} seleccionada${fotos.files.length === 1 ? "" : "s"} (referencia local)` : "";
+        guardarEstado();
+        document.getElementById("fotos-resumen").textContent = estado.campo.borrador.fotos || "Toca aquí para seleccionar fotos";
+      });
+      document.getElementById("campo-atras").addEventListener("click", () => {
+        guardarBorradorVisible();
+        if (pasoCampo > 1) pasoCampo -= 1;
+        else {
+          estado.campo.borrador = {};
           guardarEstado();
-        });
-
-        const texto = document.createElement("span");
-        texto.textContent = prioridad.texto;
-
-        etiqueta.append(casilla, texto);
-        lista.appendChild(etiqueta);
+          mostrarToast("Borrador limpio.");
+        }
+        renderRuta();
+      });
+      document.getElementById("campo-siguiente").addEventListener("click", () => {
+        guardarBorradorVisible();
+        if (pasoCampo < 3) {
+          if (pasoCampo === 1 && (!estado.campo.borrador.cliente || !estado.campo.borrador.servicio)) {
+            mostrarToast("Captura cliente y servicio para continuar.", "error");
+            return;
+          }
+          pasoCampo += 1;
+          renderRuta();
+          return;
+        }
+        estado.campo.guardados.unshift({ ...estado.campo.borrador, id: Date.now(), guardadoEn: new Date().toISOString() });
+        estado.campo.borrador = {};
+        pasoCampo = 1;
+        guardarEstado();
+        mostrarToast("Visita guardada. Ya aparece en Mission Control.");
+        renderRuta();
       });
     }
 
-    function crearMetrica(etiqueta, valor) {
-      const contenedor = document.createElement("div");
-      contenedor.className = "metrica";
-
-      const nombre = document.createElement("span");
-      nombre.className = "metrica__etiqueta";
-      nombre.textContent = etiqueta;
-
-      const cifra = document.createElement("span");
-      cifra.className = "metrica__valor";
-      cifra.textContent = valor;
-
-      contenedor.append(nombre, cifra);
-      return contenedor;
-    }
-
-    function crearControlSemaforo(claveFrente, semaforoActual) {
-      const control = document.createElement("div");
-      control.className = "control-semaforo";
-      control.setAttribute("role", "group");
-      control.setAttribute("aria-label", `Cambiar estado de ${estado.frentes[claveFrente].nombre}`);
-
-      const etiqueta = document.createElement("span");
-      etiqueta.className = "control-semaforo__etiqueta";
-      etiqueta.textContent = "Estado operativo:";
-      control.appendChild(etiqueta);
-
-      Object.entries(estadosOperativos).forEach(([color, significado]) => {
-        const boton = document.createElement("button");
-        boton.type = "button";
-        boton.className = `opcion-estado opcion-estado--${color}`;
-        boton.setAttribute("aria-pressed", String(color === semaforoActual));
-        boton.setAttribute("aria-label", `${color}: ${significado}`);
-        boton.title = significado;
-
-        const punto = document.createElement("span");
-        punto.className = "opcion-estado__punto";
-        punto.setAttribute("aria-hidden", "true");
-
-        const texto = document.createElement("span");
-        texto.textContent = color.charAt(0).toUpperCase() + color.slice(1);
-        boton.append(punto, texto);
-
-        boton.addEventListener("click", () => {
-          estado.frentes[claveFrente].semaforo = color;
-          guardarEstado();
-          renderizarFrentes();
-        });
-
-        control.appendChild(boton);
+    function enlazarCRM() {
+      const buscador = document.getElementById("buscar-crm");
+      buscador.addEventListener("input", () => {
+        const termino = buscador.value.toLocaleLowerCase("es");
+        document.querySelectorAll("#crm-body tr").forEach(fila => { fila.hidden = !fila.textContent.toLocaleLowerCase("es").includes(termino); });
       });
-
-      return control;
+      document.getElementById("nuevo-registro").addEventListener("click", () => mostrarToast("La alta completa de prospectos se habilitará en la siguiente fase."));
     }
 
-    function renderizarFrentes() {
-      const grid = document.getElementById("grid-frentes");
-      grid.replaceChildren();
-
-      Object.entries(estado.frentes).forEach(([claveFrente, frente]) => {
-        const tarjeta = document.createElement("article");
-        tarjeta.className = `tarjeta tarjeta--${frente.semaforo}`;
-        if (claveFrente === "sistema") tarjeta.classList.add("tarjeta--ancha");
-
-        const cabecera = document.createElement("div");
-        cabecera.className = "tarjeta__cabecera";
-
-        const titulo = document.createElement("h3");
-        titulo.className = "tarjeta__titulo";
-        titulo.textContent = frente.nombre;
-
-        const indicador = document.createElement("span");
-        indicador.className = "estado";
-        const punto = document.createElement("span");
-        punto.className = "estado__punto";
-        indicador.title = estadosOperativos[frente.semaforo];
-        indicador.append(
-          punto,
-          document.createTextNode(frente.semaforo.charAt(0).toUpperCase() + frente.semaforo.slice(1))
-        );
-        cabecera.append(titulo, indicador);
-
-        const controlSemaforo = crearControlSemaforo(claveFrente, frente.semaforo);
-
-        const metricas = document.createElement("div");
-        metricas.className = "metricas";
-        configuracionMetricas[claveFrente].forEach(([clave, etiqueta, formato]) => {
-          metricas.appendChild(crearMetrica(etiqueta, formatearValor(frente.metricas[clave], formato)));
+    function validarImportado(candidato) {
+      if (!candidato || typeof candidato !== "object" || !Array.isArray(candidato.prioridades) || !candidato.frentes) return false;
+      return candidato.prioridades.length === 3 && candidato.prioridades.every(p => p && typeof p.texto === "string" && typeof p.completada === "boolean") &&
+        Object.keys(estadoInicial.frentes).every(clave => {
+          const f = candidato.frentes[clave];
+          return f && f.metricas && typeof f.nota === "string" && Object.hasOwn(estadosOperativos, f.semaforo || f.semaforo_ejemplo);
         });
-
-        const nota = document.createElement("p");
-        nota.className = "nota";
-        const etiquetaNota = document.createElement("strong");
-        etiquetaNota.textContent = "Nota: ";
-        nota.append(etiquetaNota, document.createTextNode(frente.nota));
-
-        tarjeta.append(cabecera, controlSemaforo, metricas, nota);
-        grid.appendChild(tarjeta);
-      });
     }
 
-    // Guarda también el estado inicial para que exista desde la primera apertura.
-    document.getElementById("boton-exportar").addEventListener("click", exportarDatos);
-    document.getElementById("boton-importar").addEventListener("click", () => {
-      document.getElementById("entrada-importar").click();
+    function exportarDatos() {
+      const respaldo = { tipo: "GUARDIAN_OPS_RESPALDO", compatible_con: "JOE_OS_MISSION_CONTROL", version: 3, exportado_en: new Date().toISOString(), estado };
+      const url = URL.createObjectURL(new Blob([JSON.stringify(respaldo, null, 2)], { type: "application/json" }));
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = `guardian-ops-respaldo-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      mostrarToast("Respaldo descargado.");
+    }
+
+    async function importarDatos(archivo) {
+      try {
+        const leido = JSON.parse(await archivo.text());
+        const candidato = leido.estado || leido;
+        if (!validarImportado(candidato)) throw new Error("Respaldo no válido");
+        estado = normalizarEstado(candidato);
+        guardarEstado();
+        renderRuta();
+        mostrarToast("Datos restaurados correctamente.");
+      } catch (error) {
+        mostrarToast("Selecciona un respaldo válido de Mission Control o Guardian Ops.", "error");
+      }
+    }
+
+    document.addEventListener("click", (evento) => {
+      const link = evento.target.closest(".nav__link");
+      if (!link) return;
+      evento.preventDefault();
+      navegar(link.dataset.route);
     });
-    document.getElementById("entrada-importar").addEventListener("change", (evento) => {
-      const archivo = evento.target.files[0];
-      if (archivo) importarDatos(archivo);
+    window.addEventListener("popstate", renderRuta);
+    document.getElementById("exportar").addEventListener("click", exportarDatos);
+    document.getElementById("importar").addEventListener("click", () => document.getElementById("archivo-importar").click());
+    document.getElementById("archivo-importar").addEventListener("change", (evento) => {
+      if (evento.target.files[0]) importarDatos(evento.target.files[0]);
       evento.target.value = "";
     });
 
     guardarEstado();
-    mostrarFechaActual();
-    actualizarContadorReubicacion();
-    renderizarPrioridades();
-    renderizarFrentes();
-
-    // La cifra cambia al cruzar la medianoche sin necesidad de recargar la página.
-    setInterval(actualizarContadorReubicacion, 60000);
+    renderRuta();
   </script>
 </body>
 </html>
