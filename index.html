@@ -742,7 +742,7 @@
     function normalizarEstado(candidato) {
       const base = copiaInicial();
       const normal = candidato && typeof candidato === "object" ? candidato : base;
-      normal.version = 3;
+      normal.version = 4;
       normal.prioridades = Array.isArray(normal.prioridades) ? normal.prioridades : base.prioridades;
       normal.frentes = normal.frentes || base.frentes;
       Object.keys(base.frentes).forEach((clave) => {
@@ -771,6 +771,7 @@
     let temporizadorToast;
     let pasoCampo = 1;
     let previewsCampo = [];
+    let guardandoCampo = false;
 
     function guardarEstado() {
       try { localStorage.setItem(CLAVE_ALMACENAMIENTO, JSON.stringify(estado)); }
@@ -784,6 +785,22 @@
       toast.className = tipo === "error" ? "toast toast--error" : "toast";
       toast.hidden = false;
       temporizadorToast = setTimeout(() => { toast.hidden = true; }, 3800);
+    }
+
+    async function guardarVisitaRemota(visita) {
+      const respuesta = await fetch("/api/campo-visitas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          visita,
+          fotos: previewsCampo.map((preview) => ({ nombre: preview.nombre, dataUrl: preview.url }))
+        })
+      });
+      const data = await respuesta.json().catch(() => ({}));
+      if (!respuesta.ok || !data?.ok || !data?.visita) {
+        throw new Error(data?.error || "No se pudo guardar la visita en almacenamiento real.");
+      }
+      return data.visita;
     }
 
     function fechaActual() {
@@ -822,7 +839,7 @@
         ${cabecera("GUARDIAN OPS · FASE 1", "Holding", "Contenedor general de la operación. Desde aquí se entra a una sola app con módulos conectados.", "Activo")}
         <section class="metric-strip" aria-label="Resumen del holding">
           <article class="card quick-metric"><span class="quick-metric__label">Módulos habilitados</span><strong class="quick-metric__value">7</strong><span class="quick-metric__meta">Una sola aplicación</span></article>
-          <article class="card quick-metric"><span class="quick-metric__label">Capturas de campo</span><strong class="quick-metric__value">${estado.campo.guardados.length}</strong><span class="quick-metric__meta">Guardadas localmente</span></article>
+          <article class="card quick-metric"><span class="quick-metric__label">Capturas de campo</span><strong class="quick-metric__value">${estado.campo.guardados.length}</strong><span class="quick-metric__meta">Registros guardados</span></article>
           <article class="card quick-metric"><span class="quick-metric__label">Automatizaciones</span><strong class="quick-metric__value quick-metric__value--ok">${estado.frentes.sistema.metricas.automatizaciones_activas}</strong><span class="quick-metric__meta">Activas</span></article>
           <article class="card quick-metric"><span class="quick-metric__label">Alertas</span><strong class="quick-metric__value quick-metric__value--warn">${Object.values(estado.frentes).filter(f => f.semaforo !== "verde").length}</strong><span class="quick-metric__meta">Frentes por atender</span></article>
         </section>
@@ -1039,7 +1056,7 @@
       return `
         ${cabecera("HOLDING · INTELIGENCIA", "Reportes", "Resumen inicial para medir operación, ventas y disciplina sin confundir estimaciones con resultados reales.", "En construcción")}
         <section class="report-grid">
-          <article class="card report"><span class="report__label">Visitas capturadas</span><strong class="report__value">${estado.campo.guardados.length}</strong><p class="report__detail">Datos locales de prueba</p></article>
+          <article class="card report"><span class="report__label">Visitas capturadas</span><strong class="report__value">${estado.campo.guardados.length}</strong><p class="report__detail">Registros guardados desde Campo</p></article>
           <article class="card report"><span class="report__label">Frentes en verde</span><strong class="report__value">${Object.values(estado.frentes).filter(f => f.semaforo === "verde").length}/5</strong><p class="report__detail">Semáforo ejecutivo manual</p></article>
           <article class="card report"><span class="report__label">Prioridades completas</span><strong class="report__value">${estado.prioridades.filter(p => p.completada).length}/3</strong><p class="report__detail">Avance del día</p></article>
         </section>
@@ -1127,13 +1144,34 @@
       renderizarPreviewsEnDOM();
       const prepararPreviews = async (archivos) => Promise.all(Array.from(archivos).map((archivo) => new Promise((resolve) => {
         const lector = new FileReader();
-        lector.onload = () => resolve({ nombre: archivo.name || "Foto capturada", url: lector.result });
+        lector.onload = () => {
+          const imagen = new Image();
+          imagen.onload = () => {
+            const ladoMaximo = 1600;
+            const escala = Math.min(1, ladoMaximo / Math.max(imagen.width || 1, imagen.height || 1));
+            const ancho = Math.max(1, Math.round((imagen.width || 1) * escala));
+            const alto = Math.max(1, Math.round((imagen.height || 1) * escala));
+            const canvas = document.createElement("canvas");
+            canvas.width = ancho;
+            canvas.height = alto;
+            const contexto = canvas.getContext("2d");
+            if (!contexto) {
+              resolve({ nombre: archivo.name || "foto-capturada.jpg", url: lector.result });
+              return;
+            }
+            contexto.drawImage(imagen, 0, 0, ancho, alto);
+            const nombreBase = (archivo.name || "foto-capturada").replace(/\.[^.]+$/, "");
+            resolve({ nombre: `${nombreBase}.jpg`, url: canvas.toDataURL("image/jpeg", 0.82) });
+          };
+          imagen.onerror = () => resolve({ nombre: archivo.name || "Foto capturada", url: lector.result });
+          imagen.src = lector.result;
+        };
         lector.onerror = () => resolve(null);
         lector.readAsDataURL(archivo);
       }))).then((items) => items.filter(Boolean));
       const actualizarResumenFotos = (archivos, origen) => {
         estado.campo.borrador.fotos = archivos.length
-          ? `${archivos.length} foto${archivos.length === 1 ? "" : "s"} ${origen} (referencia local)`
+          ? `${archivos.length} foto${archivos.length === 1 ? "" : "s"} ${origen} lista(s) para guardar`
           : "";
         guardarEstado();
         document.getElementById("fotos-resumen").textContent = estado.campo.borrador.fotos || "Elige si quieres tomar foto o abrir galería";
@@ -1161,7 +1199,7 @@
         }
         renderRuta();
       });
-      document.getElementById("campo-siguiente").addEventListener("click", () => {
+      document.getElementById("campo-siguiente").addEventListener("click", async () => {
         guardarBorradorVisible();
         if (pasoCampo < 3) {
           if (pasoCampo === 1 && (!estado.campo.borrador.cliente || !estado.campo.borrador.servicio)) {
@@ -1172,13 +1210,31 @@
           renderRuta();
           return;
         }
-        estado.campo.guardados.unshift({ ...estado.campo.borrador, id: Date.now(), guardadoEn: new Date().toISOString() });
-        estado.campo.borrador = {};
-        previewsCampo = [];
-        pasoCampo = 1;
-        guardarEstado();
-        mostrarToast("Visita guardada. Ya aparece en Mission Control.");
-        renderRuta();
+        if (guardandoCampo) return;
+        guardandoCampo = true;
+        try {
+          const visitaBase = { ...estado.campo.borrador };
+          const visitaRemota = await guardarVisitaRemota(visitaBase);
+          estado.campo.guardados.unshift({
+            ...visitaBase,
+            id: visitaRemota.id,
+            guardadoEn: visitaRemota.guardadoEn,
+            storage: visitaRemota.storage,
+            registroUrl: visitaRemota.registroUrl,
+            registroPath: visitaRemota.registroPath,
+            fotosRemotas: visitaRemota.fotos,
+          });
+          estado.campo.borrador = {};
+          previewsCampo = [];
+          pasoCampo = 1;
+          guardarEstado();
+          mostrarToast(visitaRemota.fotos?.length ? "Visita y fotos guardadas. Ya aparecen ligadas al registro." : "Visita guardada en almacenamiento real.");
+          renderRuta();
+        } catch (error) {
+          mostrarToast(error instanceof Error ? error.message : "No se pudo guardar la visita.", "error");
+        } finally {
+          guardandoCampo = false;
+        }
       });
     }
 
@@ -1201,7 +1257,7 @@
     }
 
     function exportarDatos() {
-      const respaldo = { tipo: "GUARDIAN_OPS_RESPALDO", compatible_con: "JOE_OS_MISSION_CONTROL", version: 3, exportado_en: new Date().toISOString(), estado };
+      const respaldo = { tipo: "GUARDIAN_OPS_RESPALDO", compatible_con: "JOE_OS_MISSION_CONTROL", version: 4, exportado_en: new Date().toISOString(), estado };
       const url = URL.createObjectURL(new Blob([JSON.stringify(respaldo, null, 2)], { type: "application/json" }));
       const enlace = document.createElement("a");
       enlace.href = url;
