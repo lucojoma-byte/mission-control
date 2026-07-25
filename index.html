@@ -364,6 +364,8 @@
       cursor: pointer;
     }
     .photo-zone strong { display: block; color: var(--texto); }
+    .photo-zone__body { display: grid; gap: 12px; width: 100%; }
+    .photo-zone__empty { display: grid; gap: 4px; }
     .photo-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
     .photo-button {
       display: inline-flex;
@@ -380,6 +382,36 @@
       cursor: pointer;
     }
     .photo-button:hover, .photo-button:focus-visible { border-color: var(--acento); outline: none; }
+    .photo-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 10px;
+      width: 100%;
+    }
+    .photo-preview-card {
+      overflow: hidden;
+      border: 1px solid var(--borde);
+      border-radius: 12px;
+      background: var(--superficie);
+      text-align: left;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+    .photo-preview-card img {
+      display: block;
+      width: 100%;
+      height: 118px;
+      object-fit: cover;
+      background: color-mix(in srgb, var(--superficie-2) 82%, black);
+    }
+    .photo-preview-card span {
+      display: block;
+      padding: 8px 10px;
+      color: var(--suave);
+      font-size: .72rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .field-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; }
     .field-actions .button { min-height: 52px; padding-inline: 20px; font-size: .9rem; }
 
@@ -645,6 +677,7 @@
     let estado = cargarEstado();
     let temporizadorToast;
     let pasoCampo = 1;
+    let previewsCampo = [];
 
     function guardarEstado() {
       try { localStorage.setItem(CLAVE_ALMACENAMIENTO, JSON.stringify(estado)); }
@@ -756,6 +789,16 @@
       return String(valor).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
     }
 
+    function renderPreviewsCampo() {
+      if (!previewsCampo.length) return "";
+      return `<div class="photo-preview-grid">${previewsCampo.map((preview) => `
+        <figure class="photo-preview-card">
+          <img src="${escaparAtributo(preview.url)}" alt="${escaparAtributo(preview.nombre)}">
+          <span title="${escaparAtributo(preview.nombre)}">${preview.nombre}</span>
+        </figure>`).join("")}
+      </div>`;
+    }
+
     function pasoCampoUno(b) {
       return `
         <div class="form-grid">
@@ -778,7 +821,15 @@
           <div class="field"><label for="campo-alto">Alto aproximado (m)</label><input class="input" id="campo-alto" data-campo="alto" value="${escaparAtributo(b.alto)}" inputmode="decimal" placeholder="0.00"></div>
           <div class="field field--wide"><label for="campo-condicion">Condición observada</label><textarea class="input" id="campo-condicion" data-campo="condicion" placeholder="Describe estructura, acceso, energía, riesgos y restricciones">${b.condicion || ""}</textarea></div>
           <div class="field field--wide">
-            <div class="photo-zone"><span><strong>Agregar evidencia fotográfica</strong><span id="fotos-resumen">${b.fotos || "Elige si quieres tomar foto o abrir galería"}</span></span></div>
+            <div class="photo-zone">
+              <div class="photo-zone__body">
+                <div class="photo-zone__empty">
+                  <strong>Agregar evidencia fotográfica</strong>
+                  <span id="fotos-resumen">${b.fotos || "Elige si quieres tomar foto o abrir galería"}</span>
+                </div>
+                <div id="fotos-preview">${renderPreviewsCampo()}</div>
+              </div>
+            </div>
             <div class="photo-actions">
               <label class="photo-button" for="campo-fotos-camara">Tomar foto</label>
               <label class="photo-button" for="campo-fotos-galeria">Elegir de galería</label>
@@ -946,6 +997,16 @@
 
     function enlazarCampo() {
       document.querySelectorAll("[data-campo]").forEach(campo => campo.addEventListener("input", guardarBorradorVisible));
+      const renderizarPreviewsEnDOM = () => {
+        const contenedor = document.getElementById("fotos-preview");
+        if (contenedor) contenedor.innerHTML = renderPreviewsCampo();
+      };
+      const prepararPreviews = async (archivos) => Promise.all(Array.from(archivos).map((archivo) => new Promise((resolve) => {
+        const lector = new FileReader();
+        lector.onload = () => resolve({ nombre: archivo.name || "Foto capturada", url: lector.result });
+        lector.onerror = () => resolve(null);
+        lector.readAsDataURL(archivo);
+      }))).then((items) => items.filter(Boolean));
       const actualizarResumenFotos = (archivos, origen) => {
         estado.campo.borrador.fotos = archivos.length
           ? `${archivos.length} foto${archivos.length === 1 ? "" : "s"} ${origen} (referencia local)`
@@ -955,13 +1016,22 @@
       };
       const fotosCamara = document.getElementById("campo-fotos-camara");
       const fotosGaleria = document.getElementById("campo-fotos-galeria");
-      if (fotosCamara) fotosCamara.addEventListener("change", () => actualizarResumenFotos(fotosCamara.files, "tomada(s) con cámara"));
-      if (fotosGaleria) fotosGaleria.addEventListener("change", () => actualizarResumenFotos(fotosGaleria.files, "seleccionada(s) desde galería"));
+      if (fotosCamara) fotosCamara.addEventListener("change", async () => {
+        previewsCampo = await prepararPreviews(fotosCamara.files);
+        actualizarResumenFotos(fotosCamara.files, "tomada(s) con cámara");
+        renderizarPreviewsEnDOM();
+      });
+      if (fotosGaleria) fotosGaleria.addEventListener("change", async () => {
+        previewsCampo = await prepararPreviews(fotosGaleria.files);
+        actualizarResumenFotos(fotosGaleria.files, "seleccionada(s) desde galería");
+        renderizarPreviewsEnDOM();
+      });
       document.getElementById("campo-atras").addEventListener("click", () => {
         guardarBorradorVisible();
         if (pasoCampo > 1) pasoCampo -= 1;
         else {
           estado.campo.borrador = {};
+          previewsCampo = [];
           guardarEstado();
           mostrarToast("Borrador limpio.");
         }
@@ -980,6 +1050,7 @@
         }
         estado.campo.guardados.unshift({ ...estado.campo.borrador, id: Date.now(), guardadoEn: new Date().toISOString() });
         estado.campo.borrador = {};
+        previewsCampo = [];
         pasoCampo = 1;
         guardarEstado();
         mostrarToast("Visita guardada. Ya aparece en Mission Control.");
