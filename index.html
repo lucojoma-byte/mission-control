@@ -429,6 +429,68 @@
     }
     .field-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; }
     .field-actions .button { min-height: 52px; padding-inline: 20px; font-size: .9rem; }
+    .visit-history {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .visit-history__head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .visit-history__head h3 { margin: 0; font-size: 1rem; }
+    .visit-history__head p { margin: 4px 0 0; color: var(--suave); font-size: .8rem; }
+    .visit-history__list {
+      display: grid;
+      gap: 12px;
+    }
+    .visit-card {
+      padding: 16px;
+      border: 1px solid var(--borde);
+      border-radius: 14px;
+      background: var(--superficie-2);
+    }
+    .visit-card__top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .visit-card__title { margin: 0; font-size: .98rem; }
+    .visit-card__time { color: var(--suave); font-size: .74rem; white-space: nowrap; }
+    .visit-card__meta,
+    .visit-card__ids {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 10px;
+      padding: 0;
+      list-style: none;
+    }
+    .visit-card__meta li,
+    .visit-card__ids li {
+      padding: 6px 9px;
+      border: 1px solid var(--borde);
+      border-radius: 999px;
+      color: var(--suave);
+      background: var(--superficie);
+      font-size: .72rem;
+    }
+    .visit-card__note {
+      margin: 0 0 12px;
+      color: var(--suave);
+      font-size: .78rem;
+    }
+    .visit-card__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .visit-card__actions .button { min-height: 40px; }
 
     .table-wrap { overflow-x: auto; border: 1px solid var(--borde); border-radius: var(--radio); background: var(--superficie); }
     table { width: 100%; border-collapse: collapse; min-width: 700px; }
@@ -803,6 +865,78 @@
       return data.visita;
     }
 
+    function formatearFechaHora(fechaIso) {
+      if (!fechaIso) return "Sin fecha";
+      try {
+        return new Intl.DateTimeFormat("es-MX", {
+          day: "2-digit",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit"
+        }).format(new Date(fechaIso));
+      } catch {
+        return fechaIso;
+      }
+    }
+
+    function cortarTexto(texto = "", maximo = 56) {
+      const limpio = String(texto || "").trim();
+      if (!limpio) return "Sin dirección";
+      return limpio.length > maximo ? `${limpio.slice(0, maximo - 1)}…` : limpio;
+    }
+
+    function renderHistorialCampo() {
+      if (!estado.campo.guardados.length) {
+        return `
+          <section class="card section-card visit-history">
+            <div class="visit-history__head">
+              <div>
+                <h3>Visitas guardadas</h3>
+                <p>Aquí aparecerán las capturas reales que salgan de Campo.</p>
+              </div>
+            </div>
+            <div class="empty"><strong>Aún no hay visitas guardadas.</strong><br>Guarda una visita desde Campo para verla aquí con sus IDs y fotos.</div>
+          </section>`;
+      }
+
+      return `
+        <section class="card section-card visit-history">
+          <div class="visit-history__head">
+            <div>
+              <h3>Visitas guardadas</h3>
+              <p>Historial táctil de capturas guardadas con sus IDs y vínculo al registro.</p>
+            </div>
+            <span class="status status--active">${estado.campo.guardados.length} registradas</span>
+          </div>
+          <div class="visit-history__list">
+            ${estado.campo.guardados.map((visita) => `
+              <article class="visit-card">
+                <div class="visit-card__top">
+                  <div>
+                    <h4 class="visit-card__title">${visita.cliente || "Sin cliente"}</h4>
+                    <p class="visit-card__note">${visita.servicio || "Sin servicio"} · ${cortarTexto(visita.direccion)}</p>
+                  </div>
+                  <span class="visit-card__time">${formatearFechaHora(visita.guardadoEn)}</span>
+                </div>
+                <ul class="visit-card__ids">
+                  <li>Cliente ID: ${visita.clienteId || "Pendiente"}</li>
+                  <li>Lead ID: ${visita.leadId || "Pendiente"}</li>
+                  <li>Ticket ID: ${visita.ticketId || "Pendiente"}</li>
+                </ul>
+                <ul class="visit-card__meta">
+                  <li>${(visita.fotosRemotas || visita.fotos || []).length} foto(s)</li>
+                  <li>${visita.storage || "Sin storage"}</li>
+                  <li>${visita.telefono ? visita.telefono : "Sin teléfono"}</li>
+                </ul>
+                <div class="visit-card__actions">
+                  ${visita.registroUrl ? `<a class="button" href="${escaparAtributo(visita.registroUrl)}" target="_blank" rel="noopener noreferrer">Abrir registro</a>` : ""}
+                  ${(visita.fotosRemotas || []).length ? `<a class="button" href="${escaparAtributo((visita.fotosRemotas || [])[0].url)}" target="_blank" rel="noopener noreferrer">Abrir foto</a>` : ""}
+                </div>
+              </article>`).join("")}
+          </div>
+        </section>`;
+    }
+
     function fechaActual() {
       const texto = new Intl.DateTimeFormat("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date());
       return texto.charAt(0).toUpperCase() + texto.slice(1);
@@ -1009,6 +1143,7 @@
               <button class="button button--primary" id="campo-siguiente" type="button">${pasoCampo === 3 ? "Guardar visita" : "Guardar y continuar"}</button>
             </div>
           </section>
+          ${renderHistorialCampo()}
           <p style="color:var(--suave);font-size:.76rem;text-align:center">Borrador guardado automáticamente en este dispositivo.</p>
         </div>`;
     }
@@ -1219,6 +1354,9 @@
             ...visitaBase,
             id: visitaRemota.id,
             guardadoEn: visitaRemota.guardadoEn,
+            clienteId: visitaRemota.clienteId,
+            leadId: visitaRemota.leadId,
+            ticketId: visitaRemota.ticketId,
             storage: visitaRemota.storage,
             registroUrl: visitaRemota.registroUrl,
             registroPath: visitaRemota.registroPath,

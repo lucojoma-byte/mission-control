@@ -37,6 +37,11 @@ function extensionDesdeMime(mime = '') {
   return 'jpg';
 }
 
+function consecutivoDesdeTimestamp(timestamp = Date.now(), extra = 0) {
+  const base = String(Number(timestamp) + extra).slice(-6);
+  return base.padStart(6, '0');
+}
+
 function parsearDataUrl(dataUrl = '') {
   const match = /^data:([^;]+);base64,(.+)$/.exec(String(dataUrl));
   if (!match) throw new Error('Formato de imagen no válido.');
@@ -89,8 +94,12 @@ module.exports = async (req, res) => {
       return responderJson(res, 400, { ok: false, error: 'Cliente y servicio son obligatorios.' });
     }
 
-    const visitId = `vis-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+    const stamp = Date.now();
+    const visitId = `vis-${stamp}-${crypto.randomBytes(3).toString('hex')}`;
     const createdAt = new Date().toISOString();
+    const clienteId = `CL-${consecutivoDesdeTimestamp(stamp)}`;
+    const leadId = `LE-${consecutivoDesdeTimestamp(stamp, 1)}`;
+    const ticketId = `TK-${consecutivoDesdeTimestamp(stamp, 2)}`;
 
     const fotosGuardadas = [];
     for (let indice = 0; indice < fotos.length; indice += 1) {
@@ -111,6 +120,9 @@ module.exports = async (req, res) => {
 
     const registro = {
       id: visitId,
+      clienteId,
+      leadId,
+      ticketId,
       guardadoEn: createdAt,
       storage: process.env.BLOB_READ_WRITE_TOKEN ? 'vercel-blob' : 'local-dev-fallback',
       cliente: visita.cliente || '',
@@ -138,6 +150,9 @@ module.exports = async (req, res) => {
       ok: true,
       visita: {
         id: visitId,
+        clienteId,
+        leadId,
+        ticketId,
         guardadoEn: createdAt,
         storage: registro.storage,
         registroUrl: registroBlob.url,
