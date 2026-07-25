@@ -1118,11 +1118,13 @@
       document.querySelectorAll("[data-campo]").forEach(campo => campo.addEventListener("input", guardarBorradorVisible));
       const renderizarPreviewsEnDOM = () => {
         const contenedor = document.getElementById("fotos-preview");
-        if (contenedor) contenedor.innerHTML = renderPreviewsCampo();
+        if (!contenedor) return;
+        contenedor.innerHTML = renderPreviewsCampo();
+        contenedor.querySelectorAll(".photo-preview-button").forEach(boton => boton.addEventListener("click", () => {
+          abrirPreviewGrande(boton.dataset.previewUrl, boton.dataset.previewNombre);
+        }));
       };
-      document.querySelectorAll(".photo-preview-button").forEach(boton => boton.addEventListener("click", () => {
-        abrirPreviewGrande(boton.dataset.previewUrl, boton.dataset.previewNombre);
-      }));
+      renderizarPreviewsEnDOM();
       const prepararPreviews = async (archivos) => Promise.all(Array.from(archivos).map((archivo) => new Promise((resolve) => {
         const lector = new FileReader();
         lector.onload = () => resolve({ nombre: archivo.name || "Foto capturada", url: lector.result });
