@@ -364,6 +364,22 @@
       cursor: pointer;
     }
     .photo-zone strong { display: block; color: var(--texto); }
+    .photo-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+    .photo-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 52px;
+      padding: 12px 14px;
+      border: 1px solid var(--borde);
+      border-radius: 11px;
+      color: var(--texto);
+      background: var(--superficie-2);
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+    }
+    .photo-button:hover, .photo-button:focus-visible { border-color: var(--acento); outline: none; }
     .field-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; }
     .field-actions .button { min-height: 52px; padding-inline: 20px; font-size: .9rem; }
 
@@ -475,6 +491,7 @@
       .quick-metric__value { font-size: 1.25rem; }
       .metrics { grid-template-columns: 1fr; }
       .metric__label { white-space: normal; }
+      .photo-actions { grid-template-columns: 1fr; }
       .section-head, .field-actions { align-items: stretch; flex-direction: column; }
       .field-actions .button { width: 100%; }
     }
@@ -760,7 +777,15 @@
           <div class="field"><label for="campo-ancho">Ancho aproximado (m)</label><input class="input" id="campo-ancho" data-campo="ancho" value="${escaparAtributo(b.ancho)}" inputmode="decimal" placeholder="0.00"></div>
           <div class="field"><label for="campo-alto">Alto aproximado (m)</label><input class="input" id="campo-alto" data-campo="alto" value="${escaparAtributo(b.alto)}" inputmode="decimal" placeholder="0.00"></div>
           <div class="field field--wide"><label for="campo-condicion">Condición observada</label><textarea class="input" id="campo-condicion" data-campo="condicion" placeholder="Describe estructura, acceso, energía, riesgos y restricciones">${b.condicion || ""}</textarea></div>
-          <label class="photo-zone field--wide" for="campo-fotos"><span><strong>Agregar evidencia fotográfica</strong><span id="fotos-resumen">${b.fotos || "Toca aquí para seleccionar fotos"}</span></span><input class="file-input" id="campo-fotos" type="file" accept="image/*" multiple></label>
+          <div class="field field--wide">
+            <div class="photo-zone"><span><strong>Agregar evidencia fotográfica</strong><span id="fotos-resumen">${b.fotos || "Elige si quieres tomar foto o abrir galería"}</span></span></div>
+            <div class="photo-actions">
+              <label class="photo-button" for="campo-fotos-camara">Tomar foto</label>
+              <label class="photo-button" for="campo-fotos-galeria">Elegir de galería</label>
+            </div>
+            <input class="file-input" id="campo-fotos-camara" type="file" accept="image/*" capture="environment">
+            <input class="file-input" id="campo-fotos-galeria" type="file" accept="image/*" multiple>
+          </div>
         </div>`;
     }
 
@@ -921,12 +946,17 @@
 
     function enlazarCampo() {
       document.querySelectorAll("[data-campo]").forEach(campo => campo.addEventListener("input", guardarBorradorVisible));
-      const fotos = document.getElementById("campo-fotos");
-      if (fotos) fotos.addEventListener("change", () => {
-        estado.campo.borrador.fotos = fotos.files.length ? `${fotos.files.length} foto${fotos.files.length === 1 ? "" : "s"} seleccionada${fotos.files.length === 1 ? "" : "s"} (referencia local)` : "";
+      const actualizarResumenFotos = (archivos, origen) => {
+        estado.campo.borrador.fotos = archivos.length
+          ? `${archivos.length} foto${archivos.length === 1 ? "" : "s"} ${origen} (referencia local)`
+          : "";
         guardarEstado();
-        document.getElementById("fotos-resumen").textContent = estado.campo.borrador.fotos || "Toca aquí para seleccionar fotos";
-      });
+        document.getElementById("fotos-resumen").textContent = estado.campo.borrador.fotos || "Elige si quieres tomar foto o abrir galería";
+      };
+      const fotosCamara = document.getElementById("campo-fotos-camara");
+      const fotosGaleria = document.getElementById("campo-fotos-galeria");
+      if (fotosCamara) fotosCamara.addEventListener("change", () => actualizarResumenFotos(fotosCamara.files, "tomada(s) con cámara"));
+      if (fotosGaleria) fotosGaleria.addEventListener("change", () => actualizarResumenFotos(fotosGaleria.files, "seleccionada(s) desde galería"));
       document.getElementById("campo-atras").addEventListener("click", () => {
         guardarBorradorVisible();
         if (pasoCampo > 1) pasoCampo -= 1;
