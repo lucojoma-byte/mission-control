@@ -354,7 +354,7 @@
     .photo-zone {
       display: grid;
       min-height: 118px;
-      place-items: center;
+      align-items: start;
       padding: 18px;
       border: 1px dashed color-mix(in srgb, var(--acento) 55%, var(--borde));
       border-radius: 12px;
@@ -384,8 +384,8 @@
     .photo-button:hover, .photo-button:focus-visible { border-color: var(--acento); outline: none; }
     .photo-preview-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
       width: 100%;
     }
     .photo-preview-card {
@@ -399,8 +399,8 @@
     .photo-preview-card img {
       display: block;
       width: 100%;
-      height: 118px;
-      object-fit: cover;
+      height: clamp(220px, 34vw, 320px);
+      object-fit: contain;
       background: color-mix(in srgb, var(--superficie-2) 82%, black);
     }
     .photo-preview-card span {
@@ -408,9 +408,8 @@
       padding: 8px 10px;
       color: var(--suave);
       font-size: .72rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
     .field-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; }
     .field-actions .button { min-height: 52px; padding-inline: 20px; font-size: .9rem; }
@@ -523,6 +522,8 @@
       .quick-metric__value { font-size: 1.25rem; }
       .metrics { grid-template-columns: 1fr; }
       .metric__label { white-space: normal; }
+      .photo-preview-grid { grid-template-columns: 1fr; }
+      .photo-preview-card img { height: min(62vw, 320px); }
       .photo-actions { grid-template-columns: 1fr; }
       .section-head, .field-actions { align-items: stretch; flex-direction: column; }
       .field-actions .button { width: 100%; }
