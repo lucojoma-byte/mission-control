@@ -917,6 +917,30 @@
       return estado.campo.guardados.find((visita) => visita.id === visitaId) || null;
     }
 
+    function visitaCRMDesdeRuta() {
+      const visitaId = new URLSearchParams(window.location.search).get("visita");
+      if (!visitaId) return null;
+      return estado.campo.guardados.find((visita) => visita.id === visitaId) || null;
+    }
+
+    function zonaDesdeDireccion(direccion = "") {
+      const limpio = String(direccion || "").trim();
+      if (!limpio) return "Por definir";
+      const partes = limpio.split(",").map((parte) => parte.trim()).filter(Boolean);
+      return partes.at(-1) || partes[0] || "Por definir";
+    }
+
+    function siguienteAccionDesdeVisita(visita = {}) {
+      if (visita.fechaSeguimiento) return `Dar seguimiento el ${visita.fechaSeguimiento}`;
+      if (visita.condicion || visita.notas) return "Preparar cotización";
+      return "Contactar para completar datos";
+    }
+
+    function estadoCRMDesdeVisita(visita = {}) {
+      if (visita.condicion || visita.notas || visita.ancho || visita.alto) return "Calificado";
+      return "Nuevo";
+    }
+
     function cortarTexto(texto = "", maximo = 56) {
       const limpio = String(texto || "").trim();
       if (!limpio) return "Sin dirección";
@@ -968,6 +992,7 @@
                 </ul>
                 <div class="visit-card__actions">
                   <a class="button button--primary" data-route-link href="/holding/campo/registro?visita=${encodeURIComponent(visita.id || "")}">Ver registro</a>
+                  <a class="button" data-route-link href="/holding/crm?visita=${encodeURIComponent(visita.id || "")}">Pasar a CRM</a>
                   ${visita.registroUrl ? `<a class="button" href="${escaparAtributo(visita.registroUrl)}" target="_blank" rel="noopener noreferrer">Descargar JSON</a>` : ""}
                   ${(visita.fotosRemotas || []).length ? `<a class="button" href="${escaparAtributo((visita.fotosRemotas || [])[0].url)}" target="_blank" rel="noopener noreferrer">Abrir foto</a>` : ""}
                 </div>
@@ -1044,6 +1069,7 @@
             </div>
             <div class="field-actions">
               <a class="button" data-route-link href="/holding/campo">Volver a Campo</a>
+              <a class="button button--primary" data-route-link href="/holding/crm?visita=${encodeURIComponent(visita.id || "")}">Pasar a CRM</a>
               ${visita.registroUrl ? `<a class="button" href="${escaparAtributo(visita.registroUrl)}" target="_blank" rel="noopener noreferrer">Descargar JSON</a>` : ""}
             </div>
           </section>
@@ -1268,6 +1294,29 @@
     ];
 
     function renderCRM() {
+      const visitaCampo = visitaCRMDesdeRuta();
+      const filaCampo = visitaCampo ? [
+        textoVisible(visitaCampo.cliente, "Sin cliente"),
+        textoVisible(zonaDesdeDireccion(visitaCampo.direccion), "Por definir"),
+        textoVisible(visitaCampo.servicio, "Sin servicio"),
+        textoVisible(siguienteAccionDesdeVisita(visitaCampo), "Preparar cotización"),
+        textoVisible(estadoCRMDesdeVisita(visitaCampo), "Nuevo")
+      ] : null;
+      const filasVisibles = filaCampo ? [filaCampo, ...filasCRM] : filasCRM;
+      const resumenCRM = visitaCampo ? [
+        `Cliente ID: ${visitaCampo.clienteId || "Pendiente"}`,
+        `Lead ID: ${visitaCampo.leadId || "Pendiente"}`,
+        `Ticket ID: ${visitaCampo.ticketId || "Pendiente"}`,
+        `Cliente: ${visitaCampo.cliente || "Sin cliente"}`,
+        `Teléfono: ${visitaCampo.telefono || "Sin teléfono"}`,
+        `Zona: ${zonaDesdeDireccion(visitaCampo.direccion)}`,
+        `Interés: ${visitaCampo.servicio || "Sin servicio"}`,
+        `Siguiente acción: ${siguienteAccionDesdeVisita(visitaCampo)}`,
+        `Estado sugerido: ${estadoCRMDesdeVisita(visitaCampo)}`,
+        `Medidas: ${visitaCampo.ancho || "s/d"}m x ${visitaCampo.alto || "s/d"}m`,
+        `Condición: ${visitaCampo.condicion || "Sin condición capturada"}`,
+        `Notas: ${visitaCampo.notas || "Sin notas"}`
+      ].join("\n") : "";
       return `
         ${cabecera("GUARDIÁN · RELACIONES", "CRM", "Esta sección está usando un CRM puente mientras construimos el CRM interno de Guardian Ops. Hoy el control real vive en el Google Sheet provisional.", "En construcción")}
         <section class="card section-card" style="margin-bottom:16px">
@@ -1275,8 +1324,35 @@
           <p style="margin:0 0 14px;color:var(--suave)">Usa este acceso para abrir la vista maestra comercial en Google Sheets sin ensuciar Mission Control. La app todavía no sincroniza datos automáticamente.</p>
           <a class="button button--primary" href="https://docs.google.com/spreadsheets/d/11t7qh7tnS6za21FAfa9ZCeG3r0hnB7uFmqUkZLK0d2E/edit#gid=907318392" target="_blank" rel="noopener noreferrer">Abrir CRM provisional</a>
         </section>
+        ${visitaCampo ? `
+          <section class="card section-card" style="margin-bottom:16px">
+            <div class="section-head"><h2 class="section-title">Visita de Campo lista para pasar al CRM</h2><span class="status status--active">Puente listo</span></div>
+            <p style="margin:0 0 14px;color:var(--suave)">Ya te traje la captura técnica al lado comercial. Aquí puedes revisar los datos clave antes de abrir el Google Sheet.</p>
+            <div class="form-grid">
+              <div class="field"><label>Cliente</label><div class="input">${textoVisible(visitaCampo.cliente, "Sin cliente")}</div></div>
+              <div class="field"><label>Zona</label><div class="input">${textoVisible(zonaDesdeDireccion(visitaCampo.direccion), "Por definir")}</div></div>
+              <div class="field"><label>Interés</label><div class="input">${textoVisible(visitaCampo.servicio, "Sin servicio")}</div></div>
+              <div class="field"><label>Estado sugerido</label><div class="input">${textoVisible(estadoCRMDesdeVisita(visitaCampo), "Nuevo")}</div></div>
+              <div class="field"><label>Siguiente acción</label><div class="input">${textoVisible(siguienteAccionDesdeVisita(visitaCampo), "Preparar cotización")}</div></div>
+              <div class="field"><label>Teléfono</label><div class="input">${textoVisible(visitaCampo.telefono, "Sin teléfono")}</div></div>
+            </div>
+            <ul class="visit-card__ids" style="margin:18px 0">
+              <li>Cliente ID: ${textoVisible(visitaCampo.clienteId, "Pendiente")}</li>
+              <li>Lead ID: ${textoVisible(visitaCampo.leadId, "Pendiente")}</li>
+              <li>Ticket ID: ${textoVisible(visitaCampo.ticketId, "Pendiente")}</li>
+            </ul>
+            <div class="field">
+              <label for="crm-resumen-campo">Resumen listo para copiar al CRM</label>
+              <textarea class="input" id="crm-resumen-campo" readonly style="min-height:210px">${escapeHtml(resumenCRM)}</textarea>
+            </div>
+            <div class="field-actions">
+              <button class="button button--primary" id="copiar-resumen-crm" type="button">Copiar resumen</button>
+              <a class="button" href="https://docs.google.com/spreadsheets/d/11t7qh7tnS6za21FAfa9ZCeG3r0hnB7uFmqUkZLK0d2E/edit#gid=907318392" target="_blank" rel="noopener noreferrer">Abrir CRM provisional</a>
+              <a class="button" data-route-link href="/holding/campo/registro?visita=${encodeURIComponent(visitaCampo.id || "")}">Volver al registro</a>
+            </div>
+          </section>` : ""}
         <div class="toolbar"><input class="search" id="buscar-crm" type="search" placeholder="Buscar por cliente, zona o servicio…" aria-label="Buscar en CRM"><button class="button button--primary" id="nuevo-registro" type="button">+ Nuevo prospecto</button></div>
-        <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Zona</th><th>Interés</th><th>Siguiente acción</th><th>Estado</th></tr></thead><tbody id="crm-body">${filasCRM.map(f => `<tr>${f.map((c, i) => `<td class="${i === 0 ? "table-title" : ""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+        <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Zona</th><th>Interés</th><th>Siguiente acción</th><th>Estado</th></tr></thead><tbody id="crm-body">${filasVisibles.map((f, indice) => `<tr>${f.map((c, i) => `<td class="${i === 0 ? "table-title" : ""}">${c}${filaCampo && indice === 0 && i === 0 ? ` <span class="status status--active" style="margin-left:8px">Desde Campo</span>` : ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
     }
 
     function renderCotizaciones() {
@@ -1503,7 +1579,23 @@
         const termino = buscador.value.toLocaleLowerCase("es");
         document.querySelectorAll("#crm-body tr").forEach(fila => { fila.hidden = !fila.textContent.toLocaleLowerCase("es").includes(termino); });
       });
-      document.getElementById("nuevo-registro").addEventListener("click", () => mostrarToast("La alta completa de prospectos se habilitará en la siguiente fase."));
+      const copiarResumen = document.getElementById("copiar-resumen-crm");
+      if (copiarResumen) copiarResumen.addEventListener("click", async () => {
+        const campo = document.getElementById("crm-resumen-campo");
+        const texto = campo?.value || "";
+        try {
+          if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(texto);
+          else {
+            campo.focus();
+            campo.select();
+            document.execCommand("copy");
+          }
+          mostrarToast("Resumen listo. Ya lo puedes pegar en el CRM provisional.");
+        } catch {
+          mostrarToast("No pude copiar automáticamente. Selecciónalo y pégalo manualmente.", "error");
+        }
+      });
+      document.getElementById("nuevo-registro").addEventListener("click", () => mostrarToast("Usa la tarjeta de Campo para copiar datos y luego abre el CRM provisional."));
     }
 
     function validarImportado(candidato) {
