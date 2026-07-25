@@ -396,6 +396,16 @@
       text-align: left;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
     }
+    .photo-preview-button {
+      display: block;
+      width: 100%;
+      padding: 0;
+      border: 0;
+      color: inherit;
+      background: transparent;
+      text-align: inherit;
+      cursor: zoom-in;
+    }
     .photo-preview-card img {
       display: block;
       width: 100%;
@@ -410,6 +420,12 @@
       font-size: .72rem;
       white-space: normal;
       overflow-wrap: anywhere;
+    }
+    .photo-preview-hint {
+      margin-top: 8px;
+      color: var(--suave);
+      font-size: .72rem;
+      text-align: left;
     }
     .field-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; }
     .field-actions .button { min-height: 52px; padding-inline: 20px; font-size: .9rem; }
@@ -467,6 +483,67 @@
       font-size: .82rem;
     }
     .toast--error { border-color: var(--rojo); }
+    .photo-modal[hidden] { display: none !important; }
+    .photo-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(5, 8, 14, .86);
+      backdrop-filter: blur(8px);
+    }
+    .photo-modal__dialog {
+      width: min(980px, 100%);
+      max-height: min(92vh, 980px);
+      padding: 14px;
+      border: 1px solid var(--borde);
+      border-radius: 18px;
+      background: var(--superficie);
+      box-shadow: var(--sombra);
+    }
+    .photo-modal__topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .photo-modal__title {
+      margin: 0;
+      color: var(--texto);
+      font-size: .92rem;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+    .photo-modal__close {
+      flex: 0 0 auto;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0 14px;
+      border: 1px solid var(--borde);
+      border-radius: 10px;
+      color: var(--texto);
+      background: var(--superficie-2);
+      cursor: pointer;
+    }
+    .photo-modal__frame {
+      display: grid;
+      place-items: center;
+      min-height: min(72vh, 720px);
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--superficie-2) 82%, black);
+      overflow: hidden;
+    }
+    .photo-modal__frame img {
+      display: block;
+      max-width: 100%;
+      max-height: min(72vh, 720px);
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
     .menu-button { display: none; }
 
     @media (max-width: 980px) {
@@ -524,6 +601,10 @@
       .metric__label { white-space: normal; }
       .photo-preview-grid { grid-template-columns: 1fr; }
       .photo-preview-card img { height: min(62vw, 320px); }
+      .photo-modal { padding: 12px; }
+      .photo-modal__dialog { padding: 12px; }
+      .photo-modal__frame { min-height: min(68vh, 560px); }
+      .photo-modal__frame img { max-height: min(68vh, 560px); }
       .photo-actions { grid-template-columns: 1fr; }
       .section-head, .field-actions { align-items: stretch; flex-direction: column; }
       .field-actions .button { width: 100%; }
@@ -572,6 +653,17 @@
 
   <input class="file-input" id="archivo-importar" type="file" accept="application/json,.json">
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <div class="photo-modal" id="photo-modal" hidden>
+    <div class="photo-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="photo-modal-title">
+      <div class="photo-modal__topbar">
+        <p class="photo-modal__title" id="photo-modal-title">Vista ampliada</p>
+        <button class="photo-modal__close" id="photo-modal-close" type="button" aria-label="Cerrar foto">Cerrar</button>
+      </div>
+      <div class="photo-modal__frame">
+        <img id="photo-modal-image" alt="Vista ampliada de evidencia">
+      </div>
+    </div>
+  </div>
 
   <script>
     const CLAVE_ALMACENAMIENTO = "joe_os_mission_control_v1";
@@ -794,10 +886,36 @@
       if (!previewsCampo.length) return "";
       return `<div class="photo-preview-grid">${previewsCampo.map((preview) => `
         <figure class="photo-preview-card">
-          <img src="${escaparAtributo(preview.url)}" alt="${escaparAtributo(preview.nombre)}">
-          <span title="${escaparAtributo(preview.nombre)}">${preview.nombre}</span>
+          <button class="photo-preview-button" type="button" data-preview-url="${escaparAtributo(preview.url)}" data-preview-nombre="${escaparAtributo(preview.nombre)}" aria-label="Abrir ${escaparAtributo(preview.nombre)} en grande">
+            <img src="${escaparAtributo(preview.url)}" alt="${escaparAtributo(preview.nombre)}">
+            <span title="${escaparAtributo(preview.nombre)}">${preview.nombre}</span>
+          </button>
         </figure>`).join("")}
-      </div>`;
+      </div><div class="photo-preview-hint">Toca una foto para verla en grande.</div>`;
+    }
+
+    function abrirPreviewGrande(url, nombre) {
+      const modal = document.getElementById("photo-modal");
+      const imagen = document.getElementById("photo-modal-image");
+      const titulo = document.getElementById("photo-modal-title");
+      if (!modal || !imagen || !titulo) return;
+      imagen.src = url;
+      imagen.alt = nombre || "Vista ampliada de evidencia";
+      titulo.textContent = nombre || "Vista ampliada";
+      modal.hidden = false;
+      document.body.style.overflow = "hidden";
+    }
+
+    function cerrarPreviewGrande() {
+      const modal = document.getElementById("photo-modal");
+      const imagen = document.getElementById("photo-modal-image");
+      const titulo = document.getElementById("photo-modal-title");
+      if (!modal || !imagen || !titulo) return;
+      modal.hidden = true;
+      imagen.removeAttribute("src");
+      imagen.alt = "Vista ampliada de evidencia";
+      titulo.textContent = "Vista ampliada";
+      document.body.style.overflow = "";
     }
 
     function pasoCampoUno(b) {
@@ -1002,6 +1120,9 @@
         const contenedor = document.getElementById("fotos-preview");
         if (contenedor) contenedor.innerHTML = renderPreviewsCampo();
       };
+      document.querySelectorAll(".photo-preview-button").forEach(boton => boton.addEventListener("click", () => {
+        abrirPreviewGrande(boton.dataset.previewUrl, boton.dataset.previewNombre);
+      }));
       const prepararPreviews = async (archivos) => Promise.all(Array.from(archivos).map((archivo) => new Promise((resolve) => {
         const lector = new FileReader();
         lector.onload = () => resolve({ nombre: archivo.name || "Foto capturada", url: lector.result });
@@ -1113,6 +1234,13 @@
     window.addEventListener("popstate", renderRuta);
     document.getElementById("exportar").addEventListener("click", exportarDatos);
     document.getElementById("importar").addEventListener("click", () => document.getElementById("archivo-importar").click());
+    document.getElementById("photo-modal-close").addEventListener("click", cerrarPreviewGrande);
+    document.getElementById("photo-modal").addEventListener("click", (evento) => {
+      if (evento.target.id === "photo-modal") cerrarPreviewGrande();
+    });
+    document.addEventListener("keydown", (evento) => {
+      if (evento.key === "Escape") cerrarPreviewGrande();
+    });
     document.getElementById("archivo-importar").addEventListener("change", (evento) => {
       if (evento.target.files[0]) importarDatos(evento.target.files[0]);
       evento.target.value = "";
