@@ -733,6 +733,7 @@
       "/holding",
       "/holding/mission-control",
       "/holding/campo",
+      "/holding/campo/registro",
       "/holding/crm",
       "/holding/cotizaciones",
       "/holding/aprobaciones",
@@ -896,6 +897,26 @@
       }
     }
 
+    function escapeHtml(valor = "") {
+      return String(valor)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function textoVisible(valor = "", fallback = "Sin dato") {
+      const limpio = String(valor || "").trim();
+      return limpio ? escapeHtml(limpio) : fallback;
+    }
+
+    function visitaActualDesdeRuta() {
+      const visitaId = new URLSearchParams(window.location.search).get("visita");
+      if (!visitaId) return null;
+      return estado.campo.guardados.find((visita) => visita.id === visitaId) || null;
+    }
+
     function cortarTexto(texto = "", maximo = 56) {
       const limpio = String(texto || "").trim();
       if (!limpio) return "Sin dirección";
@@ -946,12 +967,87 @@
                   <li>${visita.telefono ? visita.telefono : "Sin teléfono"}</li>
                 </ul>
                 <div class="visit-card__actions">
-                  ${visita.registroUrl ? `<a class="button" href="${escaparAtributo(visita.registroUrl)}" target="_blank" rel="noopener noreferrer">Descargar registro JSON</a>` : ""}
+                  <a class="button button--primary" data-route-link href="/holding/campo/registro?visita=${encodeURIComponent(visita.id || "")}">Ver registro</a>
+                  ${visita.registroUrl ? `<a class="button" href="${escaparAtributo(visita.registroUrl)}" target="_blank" rel="noopener noreferrer">Descargar JSON</a>` : ""}
                   ${(visita.fotosRemotas || []).length ? `<a class="button" href="${escaparAtributo((visita.fotosRemotas || [])[0].url)}" target="_blank" rel="noopener noreferrer">Abrir foto</a>` : ""}
                 </div>
               </article>`).join("")}
           </div>
         </section>`;
+    }
+
+    function renderRegistroCampo() {
+      const visita = visitaActualDesdeRuta();
+      if (!visita) {
+        return `
+          <div class="field-shell">
+            ${cabecera("GUARDIÁN · OPERACIÓN EN SITIO", "Registro de visita", "Vista legible del registro capturado desde Campo.", "Piloto")}
+            <section class="card field-card">
+              <h2>Registro no encontrado</h2>
+              <p>Esta visita ya no está guardada en este dispositivo o el enlace no es válido.</p>
+              <div class="field-actions">
+                <a class="button button--primary" data-route-link href="/holding/campo">Volver a Campo</a>
+              </div>
+            </section>
+          </div>`;
+      }
+
+      const fotos = visita.fotosRemotas || visita.fotos || [];
+      const bloques = [
+        ["Cliente", visita.cliente],
+        ["Teléfono", visita.telefono],
+        ["Dirección", visita.direccion],
+        ["Servicio", visita.servicio],
+        ["Ancho", visita.ancho],
+        ["Alto", visita.alto],
+        ["Condición", visita.condicion],
+        ["Responsable", visita.responsable],
+        ["Seguimiento", visita.fechaSeguimiento],
+        ["Notas", visita.notas],
+      ];
+
+      return `
+        <div class="field-shell">
+          ${cabecera("GUARDIÁN · OPERACIÓN EN SITIO", "Registro de visita", "Vista legible del registro capturado desde Campo.", "Piloto")}
+          <section class="card field-card">
+            <div class="visit-card__top" style="margin-bottom:18px">
+              <div>
+                <h2 style="margin:0 0 8px">${textoVisible(visita.cliente, "Sin cliente")}</h2>
+                <p style="margin:0;color:var(--suave)">${textoVisible(visita.servicio, "Sin servicio")} · ${textoVisible(visita.direccion, "Sin dirección")}</p>
+              </div>
+              <span class="visit-card__time">${formatearFechaHora(visita.guardadoEn)}</span>
+            </div>
+            <ul class="visit-card__ids" style="margin-bottom:18px">
+              <li>Cliente ID: ${textoVisible(visita.clienteId, "Pendiente")}</li>
+              <li>Lead ID: ${textoVisible(visita.leadId, "Pendiente")}</li>
+              <li>Ticket ID: ${textoVisible(visita.ticketId, "Pendiente")}</li>
+            </ul>
+            <div class="form-grid">
+              ${bloques.map(([etiqueta, valor]) => `
+                <div class="field ${etiqueta === "Notas" ? "field--wide" : ""}">
+                  <label>${etiqueta}</label>
+                  <div class="input" style="min-height:${etiqueta === "Notas" ? "110px" : "auto"};white-space:pre-wrap">${textoVisible(valor)}</div>
+                </div>`).join("")}
+            </div>
+            <div class="field" style="margin-top:18px">
+              <label>Fotos ligadas</label>
+              ${fotos.length ? `
+                <div class="photo-preview-grid" style="margin-top:10px">
+                  ${fotos.map((foto, indice) => `
+                    <figure class="photo-preview-card">
+                      <button class="photo-preview-button" type="button" data-preview-url="${escaparAtributo(foto.url || foto)}" data-preview-nombre="${escaparAtributo(foto.nombre || `foto-${indice + 1}`)}" aria-label="Abrir foto ${indice + 1} en grande">
+                        <img src="${escaparAtributo(foto.url || foto)}" alt="Foto ${indice + 1} de ${escaparAtributo(visita.cliente || 'visita')}">
+                      </button>
+                      <figcaption>${escapeHtml(foto.nombre || `Foto ${indice + 1}`)}</figcaption>
+                    </figure>`).join("")}
+                </div>` : `<div class="input" style="margin-top:10px">Sin fotos ligadas.</div>`}
+            </div>
+            <div class="field-actions">
+              <a class="button" data-route-link href="/holding/campo">Volver a Campo</a>
+              ${visita.registroUrl ? `<a class="button" href="${escaparAtributo(visita.registroUrl)}" target="_blank" rel="noopener noreferrer">Descargar JSON</a>` : ""}
+            </div>
+          </section>
+        </div>`;
     }
 
     function fechaActual() {
@@ -1225,11 +1321,12 @@
 
     function renderRuta() {
       const ruta = rutaActual();
-      document.body.classList.toggle("campo-mode", ruta === "/holding/campo");
+      document.body.classList.toggle("campo-mode", ruta.startsWith("/holding/campo"));
       const vistas = {
         "/holding": renderHolding,
         "/holding/mission-control": renderMissionControl,
         "/holding/campo": renderCampo,
+        "/holding/campo/registro": renderRegistroCampo,
         "/holding/crm": renderCRM,
         "/holding/cotizaciones": renderCotizaciones,
         "/holding/aprobaciones": renderAprobaciones,
@@ -1275,6 +1372,7 @@
       }
 
       if (ruta === "/holding/campo") enlazarCampo();
+      if (ruta === "/holding/campo/registro") enlazarRegistroCampo();
       if (ruta === "/holding/crm") enlazarCRM();
     }
 
@@ -1391,6 +1489,12 @@
           guardandoCampo = false;
         }
       });
+    }
+
+    function enlazarRegistroCampo() {
+      document.querySelectorAll(".photo-preview-button").forEach((boton) => boton.addEventListener("click", () => {
+        abrirPreviewGrande(boton.dataset.previewUrl, boton.dataset.previewNombre);
+      }));
     }
 
     function enlazarCRM() {
