@@ -400,6 +400,10 @@
     .quick-link { flex: 0 0 auto; padding: 8px 12px; border: 1px solid var(--borde); border-radius: 9px; color: var(--texto); background: var(--superficie); font-size: .78rem; text-decoration: none; cursor: pointer; }
     .quick-link:hover, .quick-link:focus-visible { border-color: var(--acento); outline: none; }
     .quick-link--label { border-color: transparent; color: var(--suave); background: transparent; font-weight: 750; pointer-events: none; }
+    body.campo-mode .quickbar,
+    body.campo-mode .sidebar__foot,
+    body.campo-mode .nav__link:not([data-route="/holding/campo"]):not([data-route="/holding/mission-control"]) { display: none; }
+    body.campo-mode .main { padding-bottom: 24px; }
     .file-input { position: fixed; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     .toast {
       position: fixed;
@@ -852,6 +856,7 @@
 
     function renderRuta() {
       const ruta = rutaActual();
+      document.body.classList.toggle("campo-mode", ruta === "/holding/campo");
       const vistas = {
         "/holding": renderHolding,
         "/holding/mission-control": renderMissionControl,
