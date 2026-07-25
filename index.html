@@ -809,7 +809,12 @@
 
     function renderCRM() {
       return `
-        ${cabecera("GUARDIÁN · RELACIONES", "CRM", "Base mínima para visualizar prospectos y no perder la siguiente acción comercial.", "En construcción")}
+        ${cabecera("GUARDIÁN · RELACIONES", "CRM", "Esta sección está usando un CRM puente mientras construimos el CRM interno de Guardian Ops. Hoy el control real vive en el Google Sheet provisional.", "En construcción")}
+        <section class="card section-card" style="margin-bottom:16px">
+          <div class="section-head"><h2 class="section-title">CRM puente activo</h2><span class="status status--build">Provisional</span></div>
+          <p style="margin:0 0 14px;color:var(--suave)">Usa este acceso para abrir la vista maestra comercial en Google Sheets sin ensuciar Mission Control. La app todavía no sincroniza datos automáticamente.</p>
+          <a class="button button--primary" href="https://docs.google.com/spreadsheets/d/11t7qh7tnS6za21FAfa9ZCeG3r0hnB7uFmqUkZLK0d2E/edit#gid=907318392" target="_blank" rel="noopener noreferrer">Abrir CRM provisional</a>
+        </section>
         <div class="toolbar"><input class="search" id="buscar-crm" type="search" placeholder="Buscar por cliente, zona o servicio…" aria-label="Buscar en CRM"><button class="button button--primary" id="nuevo-registro" type="button">+ Nuevo prospecto</button></div>
         <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Zona</th><th>Interés</th><th>Siguiente acción</th><th>Estado</th></tr></thead><tbody id="crm-body">${filasCRM.map(f => `<tr>${f.map((c, i) => `<td class="${i === 0 ? "table-title" : ""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
     }
