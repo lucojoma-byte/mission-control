@@ -741,7 +741,7 @@
     ];
 
     const estadoInicial = {
-      version: 3,
+      version: 6,
       prioridades: [
         { id: 1, texto: "Revisar agenda de Casa Kiraz", completada: false },
         { id: 2, texto: "Evaluar candidatos de TikTok Shop", completada: false },
@@ -779,7 +779,11 @@
           nota: "Falta cerrar una prioridad semanal."
         }
       },
-      campo: { borrador: {}, guardados: [] }
+      campo: { borrador: {}, guardados: [] },
+      crm: {
+        borrador: {},
+        prospectos: []
+      }
     };
 
     const configuracionMetricas = {
@@ -816,10 +820,77 @@
       };
     }
 
+    function borradorCRMInicial() {
+      return {
+        cliente: "",
+        telefono: "",
+        zona: "",
+        interes: "",
+        estado: "Nuevo",
+        siguienteAccion: "",
+        clienteId: "",
+        leadId: "",
+        ticketId: "",
+        resumen: "",
+        origen: "manual"
+      };
+    }
+
+    function resumenCRMDesdeBorrador(borrador = {}) {
+      return [
+        `Cliente ID: ${borrador.clienteId || "Pendiente"}`,
+        `Lead ID: ${borrador.leadId || "Pendiente"}`,
+        `Ticket ID: ${borrador.ticketId || "Pendiente"}`,
+        `Cliente: ${borrador.cliente || "Sin cliente"}`,
+        `Teléfono: ${borrador.telefono || "Sin teléfono"}`,
+        `Zona: ${borrador.zona || "Por definir"}`,
+        `Interés: ${borrador.interes || "Sin servicio"}`,
+        `Siguiente acción: ${borrador.siguienteAccion || "Sin acción"}`,
+        `Estado sugerido: ${borrador.estado || "Nuevo"}`,
+        borrador.resumen ? `Notas CRM: ${borrador.resumen}` : "Notas CRM: Sin notas"
+      ].join("\n");
+    }
+
+    function crearBorradorCRMDesdeVisita(visita = {}) {
+      const borrador = {
+        ...borradorCRMInicial(),
+        cliente: visita.cliente || "",
+        telefono: visita.telefono || "",
+        zona: zonaDesdeDireccion(visita.direccion),
+        interes: visita.servicio || "",
+        estado: estadoCRMDesdeVisita(visita),
+        siguienteAccion: siguienteAccionDesdeVisita(visita),
+        clienteId: visita.clienteId || "",
+        leadId: visita.leadId || "",
+        ticketId: visita.ticketId || "",
+        resumen: [
+          visita.ancho || visita.alto ? `Medidas: ${visita.ancho || "s/d"}m x ${visita.alto || "s/d"}m` : "",
+          visita.condicion ? `Condición: ${visita.condicion}` : "",
+          visita.notas ? `Notas: ${visita.notas}` : ""
+        ].filter(Boolean).join("\n"),
+        origen: "campo"
+      };
+      return { ...borrador, resumenCompleto: resumenCRMDesdeBorrador(borrador) };
+    }
+
+    function normalizarProspectoCRM(prospecto = {}, indice = 0) {
+      const base = borradorCRMInicial();
+      const mezcla = { ...base, ...prospecto };
+      const fuente = prospecto.id || prospecto.creadoEn || Date.now() + indice;
+      return {
+        ...mezcla,
+        id: prospecto.id || `crm-${consecutivoDesdeValor(fuente, indice)}`,
+        creadoEn: prospecto.creadoEn || new Date().toISOString(),
+        clienteId: mezcla.clienteId || `CL-${consecutivoDesdeValor(fuente, indice * 3)}`,
+        leadId: mezcla.leadId || `LE-${consecutivoDesdeValor(fuente, (indice * 3) + 1)}`,
+        ticketId: mezcla.ticketId || `TK-${consecutivoDesdeValor(fuente, (indice * 3) + 2)}`,
+      };
+    }
+
     function normalizarEstado(candidato) {
       const base = copiaInicial();
       const normal = candidato && typeof candidato === "object" ? candidato : base;
-      normal.version = 5;
+      normal.version = 6;
       normal.prioridades = Array.isArray(normal.prioridades) ? normal.prioridades : base.prioridades;
       normal.frentes = normal.frentes || base.frentes;
       Object.keys(base.frentes).forEach((clave) => {
@@ -834,6 +905,9 @@
         ...visita,
         ...derivarIdsVisita(visita, indice),
       }));
+      normal.crm = normal.crm && typeof normal.crm === "object" ? normal.crm : base.crm;
+      normal.crm.borrador = { ...borradorCRMInicial(), ...(normal.crm.borrador || {}) };
+      normal.crm.prospectos = (Array.isArray(normal.crm.prospectos) ? normal.crm.prospectos : []).map((prospecto, indice) => normalizarProspectoCRM(prospecto, indice));
       return normal;
     }
 
@@ -1295,39 +1369,71 @@
 
     function renderCRM() {
       const visitaCampo = visitaCRMDesdeRuta();
-      const filaCampo = visitaCampo ? [
-        textoVisible(visitaCampo.cliente, "Sin cliente"),
-        textoVisible(zonaDesdeDireccion(visitaCampo.direccion), "Por definir"),
-        textoVisible(visitaCampo.servicio, "Sin servicio"),
-        textoVisible(siguienteAccionDesdeVisita(visitaCampo), "Preparar cotización"),
-        textoVisible(estadoCRMDesdeVisita(visitaCampo), "Nuevo")
-      ] : null;
-      const filasVisibles = filaCampo ? [filaCampo, ...filasCRM] : filasCRM;
-      const resumenCRM = visitaCampo ? [
-        `Cliente ID: ${visitaCampo.clienteId || "Pendiente"}`,
-        `Lead ID: ${visitaCampo.leadId || "Pendiente"}`,
-        `Ticket ID: ${visitaCampo.ticketId || "Pendiente"}`,
-        `Cliente: ${visitaCampo.cliente || "Sin cliente"}`,
-        `Teléfono: ${visitaCampo.telefono || "Sin teléfono"}`,
-        `Zona: ${zonaDesdeDireccion(visitaCampo.direccion)}`,
-        `Interés: ${visitaCampo.servicio || "Sin servicio"}`,
-        `Siguiente acción: ${siguienteAccionDesdeVisita(visitaCampo)}`,
-        `Estado sugerido: ${estadoCRMDesdeVisita(visitaCampo)}`,
-        `Medidas: ${visitaCampo.ancho || "s/d"}m x ${visitaCampo.alto || "s/d"}m`,
-        `Condición: ${visitaCampo.condicion || "Sin condición capturada"}`,
-        `Notas: ${visitaCampo.notas || "Sin notas"}`
-      ].join("\n") : "";
+      const borradorVisita = visitaCampo ? crearBorradorCRMDesdeVisita(visitaCampo) : null;
+      const prospectosCRM = estado.crm.prospectos || [];
+      const filasInternasCRM = prospectosCRM.map((prospecto) => ({
+        celdas: [
+          `${textoVisible(prospecto.cliente, "Sin cliente")} <span class="status status--active" style="margin-left:8px">${prospecto.origen === "campo" ? "Guardado" : "Manual"}</span>`,
+          textoVisible(prospecto.zona, "Por definir"),
+          textoVisible(prospecto.interes, "Sin servicio"),
+          textoVisible(prospecto.siguienteAccion, "Sin acción"),
+          textoVisible(prospecto.estado, "Nuevo")
+        ],
+        clase: ""
+      }));
+      const filaCampo = borradorVisita ? {
+        celdas: [
+          `${textoVisible(borradorVisita.cliente, "Sin cliente")} <span class="status status--active" style="margin-left:8px">Desde Campo</span>`,
+          textoVisible(borradorVisita.zona, "Por definir"),
+          textoVisible(borradorVisita.interes, "Sin servicio"),
+          textoVisible(borradorVisita.siguienteAccion, "Preparar cotización"),
+          textoVisible(borradorVisita.estado, "Nuevo")
+        ],
+        clase: ""
+      } : null;
+      const filasBaseCRM = filasCRM.map((fila) => ({ celdas: fila.map((celda) => escapeHtml(celda)), clase: "" }));
+      const filasVisibles = [
+        ...(filaCampo ? [filaCampo] : []),
+        ...filasInternasCRM,
+        ...filasBaseCRM
+      ];
       return `
         ${cabecera("GUARDIÁN · RELACIONES", "CRM", "Esta sección está usando un CRM puente mientras construimos el CRM interno de Guardian Ops. Hoy el control real vive en el Google Sheet provisional.", "En construcción")}
         <section class="card section-card" style="margin-bottom:16px">
           <div class="section-head"><h2 class="section-title">CRM puente activo</h2><span class="status status--build">Provisional</span></div>
-          <p style="margin:0 0 14px;color:var(--suave)">Usa este acceso para abrir la vista maestra comercial en Google Sheets sin ensuciar Mission Control. La app todavía no sincroniza datos automáticamente.</p>
+          <p style="margin:0 0 14px;color:var(--suave)">El problema real era este: al abrir Google Sheets en tablet se siente de solo lectura. Por eso aquí ya te dejo una captura editable dentro del CRM provisional, sin depender de pegar primero en Sheets.</p>
           <a class="button button--primary" href="https://docs.google.com/spreadsheets/d/11t7qh7tnS6za21FAfa9ZCeG3r0hnB7uFmqUkZLK0d2E/edit#gid=907318392" target="_blank" rel="noopener noreferrer">Abrir CRM provisional</a>
+        </section>
+        <section class="card section-card" style="margin-bottom:16px">
+          <div class="section-head"><h2 class="section-title">Captura editable del CRM provisional</h2><span class="status status--active">Ya editable</span></div>
+          <p style="margin:0 0 14px;color:var(--suave)">Aquí sí puedes escribir, ajustar y guardar el prospecto. Ya no depende de que Google Sheets te deje pegar en ese momento.</p>
+          <div class="form-grid">
+            <div class="field"><label for="crm-cliente">Cliente</label><input class="input" id="crm-cliente" data-crm="cliente" value="${escaparAtributo(borradorVisita?.cliente || estado.crm.borrador.cliente || "")}" placeholder="Nombre del prospecto"></div>
+            <div class="field"><label for="crm-telefono">Teléfono</label><input class="input" id="crm-telefono" data-crm="telefono" value="${escaparAtributo(borradorVisita?.telefono || estado.crm.borrador.telefono || "")}" inputmode="tel" placeholder="33 0000 0000"></div>
+            <div class="field"><label for="crm-zona">Zona</label><input class="input" id="crm-zona" data-crm="zona" value="${escaparAtributo(borradorVisita?.zona || estado.crm.borrador.zona || "")}" placeholder="Colonia, ciudad o zona"></div>
+            <div class="field"><label for="crm-interes">Interés</label><input class="input" id="crm-interes" data-crm="interes" value="${escaparAtributo(borradorVisita?.interes || estado.crm.borrador.interes || "")}" placeholder="Portón, pérgola, diagnóstico..."></div>
+            <div class="field"><label for="crm-estado">Estado</label><input class="input" id="crm-estado" data-crm="estado" value="${escaparAtributo(borradorVisita?.estado || estado.crm.borrador.estado || "Nuevo")}" placeholder="Nuevo, Calificado..."></div>
+            <div class="field"><label for="crm-accion">Siguiente acción</label><input class="input" id="crm-accion" data-crm="siguienteAccion" value="${escaparAtributo(borradorVisita?.siguienteAccion || estado.crm.borrador.siguienteAccion || "")}" placeholder="Qué sigue"></div>
+          </div>
+          <ul class="visit-card__ids" style="margin:18px 0">
+            <li>Cliente ID: <span id="crm-cliente-id">${textoVisible(borradorVisita?.clienteId || estado.crm.borrador.clienteId, "Pendiente")}</span></li>
+            <li>Lead ID: <span id="crm-lead-id">${textoVisible(borradorVisita?.leadId || estado.crm.borrador.leadId, "Pendiente")}</span></li>
+            <li>Ticket ID: <span id="crm-ticket-id">${textoVisible(borradorVisita?.ticketId || estado.crm.borrador.ticketId, "Pendiente")}</span></li>
+          </ul>
+          <div class="field">
+            <label for="crm-resumen-campo">Notas CRM / resumen editable</label>
+            <textarea class="input" id="crm-resumen-campo" data-crm="resumen" style="min-height:210px" placeholder="Aquí sí puedes pegar, editar o completar el resumen para el CRM">${escapeHtml(borradorVisita?.resumen || estado.crm.borrador.resumen || "")}</textarea>
+          </div>
+          <div class="field-actions">
+            <button class="button button--primary" id="guardar-prospecto-crm" type="button">Guardar en CRM provisional</button>
+            <button class="button" id="copiar-resumen-crm" type="button">Copiar resumen</button>
+            <button class="button" id="limpiar-borrador-crm" type="button">Limpiar editor</button>
+          </div>
         </section>
         ${visitaCampo ? `
           <section class="card section-card" style="margin-bottom:16px">
             <div class="section-head"><h2 class="section-title">Visita de Campo lista para pasar al CRM</h2><span class="status status--active">Puente listo</span></div>
-            <p style="margin:0 0 14px;color:var(--suave)">Ya te traje la captura técnica al lado comercial. Aquí puedes revisar los datos clave antes de abrir el Google Sheet.</p>
+            <p style="margin:0 0 14px;color:var(--suave)">Ya te traje la captura técnica al lado comercial. Si quieres, puedes abrir Google Sheets; pero ya no es requisito para capturar este prospecto.</p>
             <div class="form-grid">
               <div class="field"><label>Cliente</label><div class="input">${textoVisible(visitaCampo.cliente, "Sin cliente")}</div></div>
               <div class="field"><label>Zona</label><div class="input">${textoVisible(zonaDesdeDireccion(visitaCampo.direccion), "Por definir")}</div></div>
@@ -1342,17 +1448,17 @@
               <li>Ticket ID: ${textoVisible(visitaCampo.ticketId, "Pendiente")}</li>
             </ul>
             <div class="field">
-              <label for="crm-resumen-campo">Resumen listo para copiar al CRM</label>
-              <textarea class="input" id="crm-resumen-campo" readonly style="min-height:210px">${escapeHtml(resumenCRM)}</textarea>
+              <label>Resumen sugerido desde Campo</label>
+              <textarea class="input" readonly style="min-height:210px">${escapeHtml(borradorVisita.resumenCompleto)}</textarea>
             </div>
             <div class="field-actions">
-              <button class="button button--primary" id="copiar-resumen-crm" type="button">Copiar resumen</button>
+              <button class="button" id="cargar-visita-en-crm" type="button">Cargar visita en editor</button>
               <a class="button" href="https://docs.google.com/spreadsheets/d/11t7qh7tnS6za21FAfa9ZCeG3r0hnB7uFmqUkZLK0d2E/edit#gid=907318392" target="_blank" rel="noopener noreferrer">Abrir CRM provisional</a>
               <a class="button" data-route-link href="/holding/campo/registro?visita=${encodeURIComponent(visitaCampo.id || "")}">Volver al registro</a>
             </div>
           </section>` : ""}
         <div class="toolbar"><input class="search" id="buscar-crm" type="search" placeholder="Buscar por cliente, zona o servicio…" aria-label="Buscar en CRM"><button class="button button--primary" id="nuevo-registro" type="button">+ Nuevo prospecto</button></div>
-        <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Zona</th><th>Interés</th><th>Siguiente acción</th><th>Estado</th></tr></thead><tbody id="crm-body">${filasVisibles.map((f, indice) => `<tr>${f.map((c, i) => `<td class="${i === 0 ? "table-title" : ""}">${c}${filaCampo && indice === 0 && i === 0 ? ` <span class="status status--active" style="margin-left:8px">Desde Campo</span>` : ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+        <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Zona</th><th>Interés</th><th>Siguiente acción</th><th>Estado</th></tr></thead><tbody id="crm-body">${filasVisibles.map((fila) => `<tr class="${fila.clase || ""}">${fila.celdas.map((celda, i) => `<td class="${i === 0 ? "table-title" : ""}">${celda}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
     }
 
     function renderCotizaciones() {
@@ -1574,15 +1680,33 @@
     }
 
     function enlazarCRM() {
+      const sincronizarBorradorCRM = () => {
+        document.querySelectorAll("[data-crm]").forEach((campo) => {
+          estado.crm.borrador[campo.dataset.crm] = campo.value;
+        });
+        guardarEstado();
+      };
+
+      const idsBorradorCRM = () => ({
+        clienteId: document.getElementById("crm-cliente-id")?.textContent?.trim() || estado.crm.borrador.clienteId || "",
+        leadId: document.getElementById("crm-lead-id")?.textContent?.trim() || estado.crm.borrador.leadId || "",
+        ticketId: document.getElementById("crm-ticket-id")?.textContent?.trim() || estado.crm.borrador.ticketId || "",
+      });
+
+      document.querySelectorAll("[data-crm]").forEach((campo) => campo.addEventListener("input", sincronizarBorradorCRM));
+
       const buscador = document.getElementById("buscar-crm");
       buscador.addEventListener("input", () => {
         const termino = buscador.value.toLocaleLowerCase("es");
         document.querySelectorAll("#crm-body tr").forEach(fila => { fila.hidden = !fila.textContent.toLocaleLowerCase("es").includes(termino); });
       });
+
       const copiarResumen = document.getElementById("copiar-resumen-crm");
       if (copiarResumen) copiarResumen.addEventListener("click", async () => {
         const campo = document.getElementById("crm-resumen-campo");
-        const texto = campo?.value || "";
+        sincronizarBorradorCRM();
+        const texto = resumenCRMDesdeBorrador({ ...estado.crm.borrador, ...idsBorradorCRM() });
+        if (campo) campo.value = estado.crm.borrador.resumen || "";
         try {
           if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(texto);
           else {
@@ -1590,12 +1714,56 @@
             campo.select();
             document.execCommand("copy");
           }
-          mostrarToast("Resumen listo. Ya lo puedes pegar en el CRM provisional.");
+          mostrarToast("Resumen copiado. Pero ya no dependes de pegar: también puedes guardar aquí mismo.");
         } catch {
           mostrarToast("No pude copiar automáticamente. Selecciónalo y pégalo manualmente.", "error");
         }
       });
-      document.getElementById("nuevo-registro").addEventListener("click", () => mostrarToast("Usa la tarjeta de Campo para copiar datos y luego abre el CRM provisional."));
+
+      const cargarVisita = document.getElementById("cargar-visita-en-crm");
+      if (cargarVisita) cargarVisita.addEventListener("click", () => {
+        const visita = visitaCRMDesdeRuta();
+        if (!visita) {
+          mostrarToast("No encontré una visita de Campo para cargar.", "error");
+          return;
+        }
+        estado.crm.borrador = crearBorradorCRMDesdeVisita(visita);
+        guardarEstado();
+        renderRuta();
+        mostrarToast("Visita cargada al editor del CRM.");
+      });
+
+      const guardarProspecto = document.getElementById("guardar-prospecto-crm");
+      if (guardarProspecto) guardarProspecto.addEventListener("click", () => {
+        sincronizarBorradorCRM();
+        const ids = idsBorradorCRM();
+        const borrador = { ...estado.crm.borrador, ...ids };
+        if (!String(borrador.cliente || "").trim()) {
+          mostrarToast("Escribe al menos el nombre del cliente para guardar el prospecto.", "error");
+          return;
+        }
+        const prospecto = normalizarProspectoCRM({ ...borrador, origen: borrador.origen || (visitaCRMDesdeRuta() ? "campo" : "manual") }, estado.crm.prospectos.length);
+        estado.crm.prospectos.unshift(prospecto);
+        estado.crm.borrador = borradorCRMInicial();
+        guardarEstado();
+        renderRuta();
+        mostrarToast("Prospecto guardado dentro del CRM provisional.");
+      });
+
+      const limpiarBorrador = document.getElementById("limpiar-borrador-crm");
+      if (limpiarBorrador) limpiarBorrador.addEventListener("click", () => {
+        estado.crm.borrador = borradorCRMInicial();
+        guardarEstado();
+        renderRuta();
+        mostrarToast("Editor del CRM limpio.");
+      });
+
+      document.getElementById("nuevo-registro").addEventListener("click", () => {
+        estado.crm.borrador = borradorCRMInicial();
+        guardarEstado();
+        renderRuta();
+        mostrarToast("Listo. Ya tienes un prospecto nuevo editable dentro del CRM.");
+      });
     }
 
     function validarImportado(candidato) {
