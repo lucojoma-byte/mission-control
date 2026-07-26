@@ -824,14 +824,18 @@
       return {
         cliente: "",
         telefono: "",
+        direccion: "",
         zona: "",
         interes: "",
         estado: "Nuevo",
         siguienteAccion: "",
+        fechaSeguimiento: "",
+        responsable: "",
         clienteId: "",
         leadId: "",
         ticketId: "",
         resumen: "",
+        registroUrl: "",
         origen: "manual"
       };
     }
@@ -843,6 +847,7 @@
         `Ticket ID: ${borrador.ticketId || "Pendiente"}`,
         `Cliente: ${borrador.cliente || "Sin cliente"}`,
         `Teléfono: ${borrador.telefono || "Sin teléfono"}`,
+        `Dirección: ${borrador.direccion || "Sin dirección"}`,
         `Zona: ${borrador.zona || "Por definir"}`,
         `Interés: ${borrador.interes || "Sin servicio"}`,
         `Siguiente acción: ${borrador.siguienteAccion || "Sin acción"}`,
@@ -856,13 +861,17 @@
         ...borradorCRMInicial(),
         cliente: visita.cliente || "",
         telefono: visita.telefono || "",
+        direccion: visita.direccion || "",
         zona: zonaDesdeDireccion(visita.direccion),
         interes: visita.servicio || "",
         estado: estadoCRMDesdeVisita(visita),
         siguienteAccion: siguienteAccionDesdeVisita(visita),
+        fechaSeguimiento: visita.fechaSeguimiento || "",
+        responsable: visita.responsable || "",
         clienteId: visita.clienteId || "",
         leadId: visita.leadId || "",
         ticketId: visita.ticketId || "",
+        registroUrl: visita.registroUrl || "",
         resumen: [
           visita.ancho || visita.alto ? `Medidas: ${visita.ancho || "s/d"}m x ${visita.alto || "s/d"}m` : "",
           visita.condicion ? `Condición: ${visita.condicion}` : "",
@@ -871,6 +880,40 @@
         origen: "campo"
       };
       return { ...borrador, resumenCompleto: resumenCRMDesdeBorrador(borrador) };
+    }
+
+    function construirPayloadSheets(prospecto = {}, visita = null) {
+      const notas = [
+        prospecto.resumen ? `Resumen CRM:\n${prospecto.resumen}` : "",
+        visita?.registroUrl ? `Registro Campo: ${visita.registroUrl}` : prospecto.registroUrl ? `Registro Campo: ${prospecto.registroUrl}` : "",
+        Array.isArray(visita?.fotosRemotas) && visita.fotosRemotas.length ? `Fotos: ${visita.fotosRemotas.map((foto) => foto.url).join(", ")}` : "",
+      ].filter(Boolean).join("\n\n");
+
+      return {
+        prospecto: {
+          ...prospecto,
+          direccion: prospecto.direccion || visita?.direccion || "",
+          fechaSeguimiento: prospecto.fechaSeguimiento || visita?.fechaSeguimiento || "",
+          responsable: prospecto.responsable || visita?.responsable || "",
+          registroUrl: prospecto.registroUrl || visita?.registroUrl || "",
+          notasSheets: notas,
+        },
+        visita,
+      };
+    }
+
+    async function guardarProspectoEnSheets(prospecto = {}, visita = null) {
+      const respuesta = await fetch("/api/crm-prospectos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(construirPayloadSheets(prospecto, visita)),
+      });
+
+      const data = await respuesta.json().catch(() => ({}));
+      if (!respuesta.ok || !data?.ok) {
+        throw new Error(data?.error || "No se pudo sincronizar el prospecto con Google Sheets.");
+      }
+      return data;
     }
 
     function normalizarProspectoCRM(prospecto = {}, indice = 0) {
@@ -1373,7 +1416,7 @@
       const prospectosCRM = estado.crm.prospectos || [];
       const filasInternasCRM = prospectosCRM.map((prospecto) => ({
         celdas: [
-          `${textoVisible(prospecto.cliente, "Sin cliente")} <span class="status status--active" style="margin-left:8px">${prospecto.origen === "campo" ? "Guardado" : "Manual"}</span>`,
+          `${textoVisible(prospecto.cliente, "Sin cliente")} <span class="status status--active" style="margin-left:8px">${prospecto.origen === "campo" ? "Guardado" : "Manual"}</span>${prospecto.sincronizacion?.ok ? ' <span class="status status--active" style="margin-left:8px">Sheet OK</span>' : prospecto.sincronizacion?.pendiente ? ' <span class="status status--build" style="margin-left:8px">Sheet pendiente</span>' : ''}`,
           textoVisible(prospecto.zona, "Por definir"),
           textoVisible(prospecto.interes, "Sin servicio"),
           textoVisible(prospecto.siguienteAccion, "Sin acción"),
@@ -1406,7 +1449,7 @@
         </section>
         <section class="card section-card" style="margin-bottom:16px">
           <div class="section-head"><h2 class="section-title">Captura editable del CRM provisional</h2><span class="status status--active">Ya editable</span></div>
-          <p style="margin:0 0 14px;color:var(--suave)">Aquí sí puedes escribir, ajustar y guardar el prospecto. Ya no depende de que Google Sheets te deje pegar en ese momento.</p>
+          <p style="margin:0 0 14px;color:var(--suave)">Aquí sí puedes escribir, ajustar y guardar el prospecto. Ahora el guardado intenta hacer doble respaldo: local en Mission Control y remoto en Google Sheets.</p>
           <div class="form-grid">
             <div class="field"><label for="crm-cliente">Cliente</label><input class="input" id="crm-cliente" data-crm="cliente" value="${escaparAtributo(borradorVisita?.cliente || estado.crm.borrador.cliente || "")}" placeholder="Nombre del prospecto"></div>
             <div class="field"><label for="crm-telefono">Teléfono</label><input class="input" id="crm-telefono" data-crm="telefono" value="${escaparAtributo(borradorVisita?.telefono || estado.crm.borrador.telefono || "")}" inputmode="tel" placeholder="33 0000 0000"></div>
@@ -1425,7 +1468,7 @@
             <textarea class="input" id="crm-resumen-campo" data-crm="resumen" style="min-height:210px" placeholder="Aquí sí puedes pegar, editar o completar el resumen para el CRM">${escapeHtml(borradorVisita?.resumen || estado.crm.borrador.resumen || "")}</textarea>
           </div>
           <div class="field-actions">
-            <button class="button button--primary" id="guardar-prospecto-crm" type="button">Guardar en CRM provisional</button>
+            <button class="button button--primary" id="guardar-prospecto-crm" type="button">Guardar y sincronizar</button>
             <button class="button" id="copiar-resumen-crm" type="button">Copiar resumen</button>
             <button class="button" id="limpiar-borrador-crm" type="button">Limpiar editor</button>
           </div>
@@ -1734,7 +1777,7 @@
       });
 
       const guardarProspecto = document.getElementById("guardar-prospecto-crm");
-      if (guardarProspecto) guardarProspecto.addEventListener("click", () => {
+      if (guardarProspecto) guardarProspecto.addEventListener("click", async () => {
         sincronizarBorradorCRM();
         const ids = idsBorradorCRM();
         const borrador = { ...estado.crm.borrador, ...ids };
@@ -1742,12 +1785,45 @@
           mostrarToast("Escribe al menos el nombre del cliente para guardar el prospecto.", "error");
           return;
         }
-        const prospecto = normalizarProspectoCRM({ ...borrador, origen: borrador.origen || (visitaCRMDesdeRuta() ? "campo" : "manual") }, estado.crm.prospectos.length);
+        const visita = visitaCRMDesdeRuta();
+        const prospectoBase = normalizarProspectoCRM({
+          ...borrador,
+          origen: borrador.origen || (visita ? "campo" : "manual"),
+          direccion: borrador.direccion || visita?.direccion || "",
+          fechaSeguimiento: borrador.fechaSeguimiento || visita?.fechaSeguimiento || "",
+          responsable: borrador.responsable || visita?.responsable || "",
+          registroUrl: borrador.registroUrl || visita?.registroUrl || "",
+        }, estado.crm.prospectos.length);
+
+        let prospecto = { ...prospectoBase, sincronizacion: { pendiente: true, ok: false } };
+        try {
+          const sincronizado = await guardarProspectoEnSheets(prospectoBase, visita);
+          prospecto = {
+            ...prospectoBase,
+            sincronizacion: {
+              pendiente: false,
+              ok: true,
+              actualizadoEn: sincronizado?.sheet?.updatedAt || new Date().toISOString(),
+              fila: sincronizado?.sheet?.updatedRange || "",
+            },
+          };
+        } catch (error) {
+          prospecto = {
+            ...prospectoBase,
+            sincronizacion: {
+              pendiente: true,
+              ok: false,
+              error: error instanceof Error ? error.message : "No se pudo sincronizar con Google Sheets.",
+            },
+          };
+        }
+
         estado.crm.prospectos.unshift(prospecto);
         estado.crm.borrador = borradorCRMInicial();
         guardarEstado();
         renderRuta();
-        mostrarToast("Prospecto guardado dentro del CRM provisional.");
+        if (prospecto.sincronizacion?.ok) mostrarToast("Prospecto guardado y enviado a Google Sheets.");
+        else mostrarToast(`Prospecto guardado localmente, pero Google Sheets no respondió: ${prospecto.sincronizacion?.error || "revisa credenciales."}`, "error");
       });
 
       const limpiarBorrador = document.getElementById("limpiar-borrador-crm");
