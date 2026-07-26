@@ -782,7 +782,13 @@
       campo: { borrador: {}, guardados: [] },
       crm: {
         borrador: {},
-        prospectos: []
+        prospectos: [],
+        sheet: {
+          status: "idle",
+          rows: [],
+          updatedAt: "",
+          error: ""
+        }
       }
     };
 
@@ -916,6 +922,58 @@
       return data;
     }
 
+    let cargaCRMDesdeSheetsActiva = null;
+    let ultimoIntentoCargaCRM = 0;
+
+    async function cargarProspectosDesdeSheets({ forzar = false } = {}) {
+      if (cargaCRMDesdeSheetsActiva && !forzar) return cargaCRMDesdeSheetsActiva;
+
+      estado.crm.sheet = {
+        ...(estado.crm.sheet || {}),
+        status: "loading",
+        error: "",
+      };
+      guardarEstado();
+
+      cargaCRMDesdeSheetsActiva = (async () => {
+        const respuesta = await fetch("/api/crm-prospectos");
+        const data = await respuesta.json().catch(() => ({}));
+        if (!respuesta.ok || !data?.ok) {
+          throw new Error(data?.error || "No pude leer Google Sheets.");
+        }
+
+        estado.crm.sheet = {
+          status: "ok",
+          rows: (Array.isArray(data.rows) ? data.rows : []).map((prospecto, indice) => normalizarProspectoCRM({
+            ...prospecto,
+            sincronizacion: {
+              pendiente: false,
+              ok: true,
+              actualizadoEn: prospecto.actualizadoEn || data?.sheet?.updatedAt || new Date().toISOString(),
+            },
+          }, indice)),
+          updatedAt: data?.sheet?.updatedAt || new Date().toISOString(),
+          error: "",
+        };
+        guardarEstado();
+        return estado.crm.sheet.rows;
+      })();
+
+      try {
+        return await cargaCRMDesdeSheetsActiva;
+      } catch (error) {
+        estado.crm.sheet = {
+          ...(estado.crm.sheet || {}),
+          status: "error",
+          error: error instanceof Error ? error.message : "No pude leer Google Sheets.",
+        };
+        guardarEstado();
+        throw error;
+      } finally {
+        cargaCRMDesdeSheetsActiva = null;
+      }
+    }
+
     function normalizarProspectoCRM(prospecto = {}, indice = 0) {
       const base = borradorCRMInicial();
       const mezcla = { ...base, ...prospecto };
@@ -933,7 +991,7 @@
     function normalizarEstado(candidato) {
       const base = copiaInicial();
       const normal = candidato && typeof candidato === "object" ? candidato : base;
-      normal.version = 6;
+      normal.version = 7;
       normal.prioridades = Array.isArray(normal.prioridades) ? normal.prioridades : base.prioridades;
       normal.frentes = normal.frentes || base.frentes;
       Object.keys(base.frentes).forEach((clave) => {
@@ -951,6 +1009,12 @@
       normal.crm = normal.crm && typeof normal.crm === "object" ? normal.crm : base.crm;
       normal.crm.borrador = { ...borradorCRMInicial(), ...(normal.crm.borrador || {}) };
       normal.crm.prospectos = (Array.isArray(normal.crm.prospectos) ? normal.crm.prospectos : []).map((prospecto, indice) => normalizarProspectoCRM(prospecto, indice));
+      normal.crm.sheet = {
+        status: ["idle", "loading", "ok", "error"].includes(normal.crm.sheet?.status) ? normal.crm.sheet.status : "idle",
+        rows: (Array.isArray(normal.crm.sheet?.rows) ? normal.crm.sheet.rows : []).map((prospecto, indice) => normalizarProspectoCRM(prospecto, indice)),
+        updatedAt: normal.crm.sheet?.updatedAt || "",
+        error: normal.crm.sheet?.error || "",
+      };
       return normal;
     }
 
@@ -1413,7 +1477,17 @@
     function renderCRM() {
       const visitaCampo = visitaCRMDesdeRuta();
       const borradorVisita = visitaCampo ? crearBorradorCRMDesdeVisita(visitaCampo) : null;
-      const prospectosCRM = estado.crm.prospectos || [];
+      const sheetCRM = estado.crm.sheet || { status: "idle", rows: [], updatedAt: "", error: "" };
+      const prospectosLocales = estado.crm.prospectos || [];
+      const prospectosSheets = Array.isArray(sheetCRM.rows) ? sheetCRM.rows : [];
+      const prospectosPendientes = prospectosLocales.filter((prospecto) => !prospecto.sincronizacion?.ok);
+      const idsSheet = new Set(prospectosSheets.map((prospecto) => String(prospecto.leadId || prospecto.id || "").trim()).filter(Boolean));
+      const prospectosPendientesSinDuplicar = prospectosPendientes.filter((prospecto) => {
+        const id = String(prospecto.leadId || prospecto.id || "").trim();
+        return !id || !idsSheet.has(id);
+      });
+      const usandoSheets = sheetCRM.status === "ok";
+      const prospectosCRM = usandoSheets ? [...prospectosPendientesSinDuplicar, ...prospectosSheets] : prospectosLocales;
       const filasInternasCRM = prospectosCRM.map((prospecto) => ({
         celdas: [
           `${textoVisible(prospecto.cliente, "Sin cliente")} <span class="status status--active" style="margin-left:8px">${prospecto.origen === "campo" ? "Guardado" : "Manual"}</span>${prospecto.sincronizacion?.ok ? ' <span class="status status--active" style="margin-left:8px">Sheet OK</span>' : prospecto.sincronizacion?.pendiente ? ' <span class="status status--build" style="margin-left:8px">Sheet pendiente</span>' : ''}`,
@@ -1434,17 +1508,35 @@
         ],
         clase: ""
       } : null;
-      const filasBaseCRM = filasCRM.map((fila) => ({ celdas: fila.map((celda) => escapeHtml(celda)), clase: "" }));
+      const filasBaseCRM = (!usandoSheets && !prospectosCRM.length) ? filasCRM.map((fila) => ({ celdas: fila.map((celda) => escapeHtml(celda)), clase: "" })) : [];
       const filasVisibles = [
         ...(filaCampo ? [filaCampo] : []),
         ...filasInternasCRM,
         ...filasBaseCRM
       ];
+      const estadoSheetsTexto = usandoSheets
+        ? `Vista actualizada desde Google Sheets. Registros leídos: ${prospectosSheets.length}.`
+        : sheetCRM.status === "loading"
+          ? "Actualizando desde Google Sheets…"
+          : sheetCRM.status === "error"
+            ? `No pude leer Google Sheets: ${escapeHtml(sheetCRM.error || "error desconocido")}`
+            : "Todavía no leo Google Sheets en esta vista. Mientras tanto, te muestro lo local.";
+      const estadoSheetsBadge = usandoSheets
+        ? '<span class="status status--active">Sheets en vivo</span>'
+        : sheetCRM.status === "loading"
+          ? '<span class="status status--build">Actualizando…</span>'
+          : sheetCRM.status === "error"
+            ? '<span class="status status--build">Error Sheets</span>'
+            : '<span class="status status--build">Local</span>';
       return `
         ${cabecera("GUARDIÁN · RELACIONES", "CRM", "Esta sección está usando un CRM puente mientras construimos el CRM interno de Guardian Ops. Hoy el control real vive en el Google Sheet provisional.", "En construcción")}
         <section class="card section-card" style="margin-bottom:16px">
-          <div class="section-head"><h2 class="section-title">CRM puente activo</h2><span class="status status--build">Provisional</span></div>
+          <div class="section-head"><h2 class="section-title">CRM puente activo</h2>${estadoSheetsBadge}</div>
           <p style="margin:0 0 14px;color:var(--suave)">El problema real era este: al abrir Google Sheets en tablet se siente de solo lectura. Por eso aquí ya te dejo una captura editable dentro del CRM provisional, sin depender de pegar primero en Sheets.</p>
+          <p style="margin:0 0 14px;color:var(--suave)">${estadoSheetsTexto}</p>
+          <div class="field-actions" style="margin-bottom:12px">
+            <button class="button" id="refrescar-crm-sheets" type="button">Actualizar desde Google Sheets</button>
+          </div>
           <a class="button button--primary" href="https://docs.google.com/spreadsheets/d/11t7qh7tnS6za21FAfa9ZCeG3r0hnB7uFmqUkZLK0d2E/edit#gid=907318392" target="_blank" rel="noopener noreferrer">Abrir CRM provisional</a>
         </section>
         <section class="card section-card" style="margin-bottom:16px">
@@ -1723,6 +1815,24 @@
     }
 
     function enlazarCRM() {
+      const refrescarDesdeSheets = async ({ silencioso = false, forzar = false } = {}) => {
+        try {
+          await cargarProspectosDesdeSheets({ forzar });
+          if (rutaActual() === "/holding/crm") {
+            renderRuta();
+            if (!silencioso) mostrarToast("CRM actualizado desde Google Sheets.");
+          }
+        } catch (error) {
+          if (rutaActual() === "/holding/crm") renderRuta();
+          if (!silencioso) mostrarToast(error instanceof Error ? error.message : "No pude actualizar desde Google Sheets.", "error");
+        }
+      };
+
+      if (Date.now() - ultimoIntentoCargaCRM > 15000 && estado.crm.sheet?.status !== "loading") {
+        ultimoIntentoCargaCRM = Date.now();
+        void refrescarDesdeSheets({ silencioso: true, forzar: true });
+      }
+
       const sincronizarBorradorCRM = () => {
         document.querySelectorAll("[data-crm]").forEach((campo) => {
           estado.crm.borrador[campo.dataset.crm] = campo.value;
@@ -1742,6 +1852,12 @@
       buscador.addEventListener("input", () => {
         const termino = buscador.value.toLocaleLowerCase("es");
         document.querySelectorAll("#crm-body tr").forEach(fila => { fila.hidden = !fila.textContent.toLocaleLowerCase("es").includes(termino); });
+      });
+
+      const refrescarSheets = document.getElementById("refrescar-crm-sheets");
+      if (refrescarSheets) refrescarSheets.addEventListener("click", () => {
+        ultimoIntentoCargaCRM = Date.now();
+        void refrescarDesdeSheets({ forzar: true });
       });
 
       const copiarResumen = document.getElementById("copiar-resumen-crm");
@@ -1807,6 +1923,7 @@
               fila: sincronizado?.sheet?.updatedRange || "",
             },
           };
+          await cargarProspectosDesdeSheets({ forzar: true }).catch(() => null);
         } catch (error) {
           prospecto = {
             ...prospectoBase,
