@@ -25,8 +25,44 @@ function valorTexto(valor) {
   return String(valor || '').trim();
 }
 
+function intentarParseJson(texto) {
+  try {
+    return JSON.parse(texto);
+  } catch {
+    return null;
+  }
+}
+
 function privateKeyNormalizada() {
-  return valorTexto(process.env.GOOGLE_SHEETS_PRIVATE_KEY).replace(/\\n/g, '\n');
+  const bruto = valorTexto(process.env.GOOGLE_SHEETS_PRIVATE_KEY);
+  if (!bruto) return '';
+
+  const candidatos = [bruto];
+  const jsonDirecto = intentarParseJson(bruto);
+  if (jsonDirecto && typeof jsonDirecto === 'object') {
+    if (jsonDirecto.private_key) candidatos.push(String(jsonDirecto.private_key));
+    if (jsonDirecto.key) candidatos.push(String(jsonDirecto.key));
+  }
+
+  const jsonAnidado = intentarParseJson(bruto.replace(/\\n/g, '\n'));
+  if (jsonAnidado && typeof jsonAnidado === 'object') {
+    if (jsonAnidado.private_key) candidatos.push(String(jsonAnidado.private_key));
+    if (jsonAnidado.key) candidatos.push(String(jsonAnidado.key));
+  }
+
+  for (const candidato of candidatos) {
+    const limpio = valorTexto(candidato)
+      .replace(/^['"]|['"]$/g, '')
+      .replace(/\\n/g, '\n');
+
+    const inicio = limpio.indexOf('-----BEGIN ' + 'PRIVATE KEY-----');
+    const fin = limpio.indexOf('-----END ' + 'PRIVATE KEY-----');
+    if (inicio >= 0 && fin >= 0) {
+      return limpio.slice(inicio, fin + '-----END PRIVATE KEY-----'.length);
+    }
+  }
+
+  return bruto.replace(/\\n/g, '\n');
 }
 
 function credencialesDisponibles() {
