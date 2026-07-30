@@ -1,4 +1,5 @@
 const { google } = require('googleapis');
+const { requireAuth } = require('../lib/auth');
 
 const SPREADSHEET_ID_POR_DEFECTO = '11t7qh7tnS6za21FAfa9ZCeG3r0hnB7uFmqUkZLK0d2E';
 const HOJA_POR_DEFECTO = 'CRM_PROVISIONAL';
@@ -140,6 +141,8 @@ module.exports = async (req, res) => {
     res.setHeader('Allow', 'GET, POST');
     return responderJson(res, 405, { ok: false, error: 'Método no permitido.' });
   }
+
+  if (!requireAuth(req, res)) return;
 
   try {
     if (!credencialesDisponibles()) {

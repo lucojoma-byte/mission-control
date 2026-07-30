@@ -2,6 +2,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { put } = require('@vercel/blob');
+const { requireAuth } = require('../lib/auth');
 
 function responderJson(res, statusCode, payload) {
   res.statusCode = statusCode;
@@ -84,6 +85,8 @@ module.exports = async (req, res) => {
     res.setHeader('Allow', 'POST');
     return responderJson(res, 405, { ok: false, error: 'Método no permitido.' });
   }
+
+  if (!requireAuth(req, res)) return;
 
   try {
     const body = normalizarBody(req.body);
