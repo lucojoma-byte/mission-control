@@ -5,6 +5,7 @@ const {
   InMemoryAtomicClaimStore,
   deterministicLegacyLeadId,
   planLegacyBackfill,
+  VercelBlobClaimStore,
 } = require('../lib/atomic-lead-writer');
 
 const validLead = {
@@ -79,6 +80,36 @@ test('backfill conserva IDs existentes y solo propone IDs para filas legacy', ()
   assert.equal(plan[0].needsWrite, false);
   assert.match(plan[1].leadId, /^LEGACY-[A-F0-9]{20}$/);
   assert.equal(plan[1].needsWrite, true);
+});
+
+test('adaptador Blob acepta solo el conflicto exacto como duplicado', async () => {
+  const calls = [];
+  const putFn = async (pathname, body, options) => {
+    calls.push({ pathname, body: JSON.parse(body), options });
+    if (calls.length === 2) {
+      throw new Error('Vercel Blob: This blob already exists, use `allowOverwrite: true` if you want to overwrite it.');
+    }
+    return { url: 'https://example.invalid/claim' };
+  };
+  const store = new VercelBlobClaimStore({ putFn, prefix: 'guardian-test/claims' });
+
+  const first = await store.claim({ leadId: 'GDN-2026-0001' });
+  const duplicate = await store.claim({ leadId: 'GDN-2026-0001' });
+  await store.commit('GDN-2026-0001');
+
+  assert.equal(first.acquired, true);
+  assert.deepEqual(duplicate, { acquired: false, state: 'already_claimed' });
+  assert.equal(calls[0].options.allowOverwrite, false);
+  assert.equal(calls[2].options.allowOverwrite, true);
+  assert.equal(calls[0].body.leadId, 'GDN-2026-0001');
+  assert.equal(Object.hasOwn(calls[0].body, 'nombre'), false);
+});
+
+test('adaptador Blob propaga errores distintos al conflicto de unicidad', async () => {
+  const store = new VercelBlobClaimStore({
+    putFn: async () => { throw new Error('Vercel Blob: service unavailable'); },
+  });
+  await assert.rejects(() => store.claim({ leadId: 'GDN-2026-0001' }), /service unavailable/);
 });
 
 test('backfill falla cerrado ante leadId duplicado', () => {
