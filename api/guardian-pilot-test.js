@@ -3,6 +3,9 @@ const { google } = require('googleapis');
 const { requireAuth } = require('../lib/auth');
 const { AtomicLeadWriter, VercelBlobClaimStore, planLegacyBackfill } = require('../lib/atomic-lead-writer');
 const { CANONICAL_HEADERS, GoogleSheetsLeadRepository } = require('../lib/google-sheets-lead-repository');
+const { createIsolatedSheetTarget } = require('../lib/isolated-sheets-pilot');
+
+const FALLBACK_SPREADSHEET_ID = '11t7qh7tnS6za21FAfa9ZCeG3r0hnB7uFmqUkZLK0d2E';
 
 function respond(res, statusCode, payload) {
   res.statusCode = statusCode;
@@ -57,16 +60,12 @@ async function fullRun() {
   }
   const sheets = sheetsClient();
   const runId = Date.now();
-  const sheetName = 'CRM_TEST';
-  const created = await sheets.spreadsheets.create({
-    requestBody: {
-      properties: { title: `Guardian Atomic Pilot ${runId}` },
-      sheets: [{ properties: { title: sheetName } }],
-    },
-    fields: 'spreadsheetId,spreadsheetUrl',
+  const target = await createIsolatedSheetTarget({
+    sheets,
+    runId,
+    fallbackSpreadsheetId: text(process.env.GOOGLE_SHEETS_SPREADSHEET_ID) || FALLBACK_SPREADSHEET_ID,
   });
-  const spreadsheetId = created.data.spreadsheetId;
-  const spreadsheetUrl = created.data.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
+  const { spreadsheetId, spreadsheetUrl, sheetName } = target;
 
   await sheets.spreadsheets.values.update({
     spreadsheetId,
@@ -126,6 +125,7 @@ async function fullRun() {
     spreadsheetId,
     spreadsheetUrl,
     sheetName,
+    isolationMode: target.mode,
     backfilledLeadId: backfill[0].leadId,
     concurrentLeadId: lead.leadId,
     concurrentStatuses: concurrentResults.map((item) => item.status).sort(),
