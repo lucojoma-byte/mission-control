@@ -880,7 +880,7 @@
       <div class="brand">
         <div class="brand__mark" aria-hidden="true">G</div>
         <div class="brand__copy">
-          <p class="brand__eyebrow">Guardián</p>
+          <p class="brand__eyebrow">Guardián Residencial</p>
           <h1 class="brand__name">Guardian Ops</h1>
         </div>
       </div>
@@ -1388,7 +1388,7 @@
       if (!visita) {
         return `
           <div class="field-shell">
-            ${cabecera("GUARDIÁN · OPERACIÓN EN SITIO", "Registro de visita", "Vista legible del registro capturado desde Campo.", "Piloto")}
+            ${cabecera("GUARDIÁN RESIDENCIAL · OPERACIÓN EN SITIO", "Registro de visita", "Vista legible del registro capturado desde Campo.", "Piloto")}
             <section class="card field-card">
               <h2>Registro no encontrado</h2>
               <p>Esta visita ya no está guardada en este dispositivo o el enlace no es válido.</p>
@@ -1415,7 +1415,7 @@
 
       return `
         <div class="field-shell">
-          ${cabecera("GUARDIÁN · OPERACIÓN EN SITIO", "Registro de visita", "Vista legible del registro capturado desde Campo.", "Piloto")}
+          ${cabecera("GUARDIÁN RESIDENCIAL · OPERACIÓN EN SITIO", "Registro de visita", "Vista legible del registro capturado desde Campo.", "Piloto")}
           <section class="card field-card">
             <div class="visit-card__top" style="margin-bottom:18px">
               <div>
@@ -1649,7 +1649,7 @@
       const contenido = pasoCampo === 1 ? pasoCampoUno(b) : pasoCampo === 2 ? pasoCampoDos(b) : pasoCampoTres(b);
       return `
         <div class="field-shell">
-          ${cabecera("GUARDIÁN · OPERACIÓN EN SITIO", "Campo", "Flujo táctil para que el técnico capture una visita desde tablet sin navegar por un dashboard ejecutivo.", "Piloto")}
+          ${cabecera("GUARDIÁN RESIDENCIAL · OPERACIÓN EN SITIO", "Campo", "Flujo táctil para que el técnico capture una visita desde tablet sin navegar por un dashboard ejecutivo.", "Piloto")}
           <div class="field-progress" aria-label="Progreso de captura">
             <div class="field-step ${pasoCampo === 1 ? "field-step--active" : ""}">1 · Cliente</div>
             <div class="field-step ${pasoCampo === 2 ? "field-step--active" : ""}">2 · Evidencia</div>
@@ -1730,7 +1730,7 @@
             ? '<span class="status status--build">Error Sheets</span>'
             : '<span class="status status--build">Local</span>';
       return `
-        ${cabecera("GUARDIÁN · RELACIONES", "CRM", "Esta sección está usando un CRM puente mientras construimos el CRM interno de Guardian Ops. Hoy el control real vive en el Google Sheet provisional.", "En construcción")}
+        ${cabecera("GUARDIÁN RESIDENCIAL · RELACIONES", "CRM", "Esta sección está usando un CRM puente mientras construimos el CRM interno de Guardian Ops. Hoy el control real vive en el Google Sheet provisional.", "En construcción")}
         <section class="card section-card" style="margin-bottom:16px">
           <div class="section-head"><h2 class="section-title">CRM puente activo</h2>${estadoSheetsBadge}</div>
           <p style="margin:0 0 14px;color:var(--suave)">El problema real era este: al abrir Google Sheets en tablet se siente de solo lectura. Por eso aquí ya te dejo una captura editable dentro del CRM provisional, sin depender de pegar primero en Sheets.</p>
@@ -1799,7 +1799,7 @@
 
     function renderCotizaciones() {
       return `
-        ${cabecera("GUARDIÁN · PROPUESTAS", "Cotizaciones", "Bandeja preparada para convertir capturas de campo en propuestas revisables.", "En construcción")}
+        ${cabecera("GUARDIÁN RESIDENCIAL · PROPUESTAS", "Cotizaciones", "Bandeja preparada para convertir capturas de campo en propuestas revisables.", "En construcción")}
         <section class="metric-strip">
           <article class="card quick-metric"><span class="quick-metric__label">Borradores</span><strong class="quick-metric__value quick-metric__value--warn">0</strong><span class="quick-metric__meta">Por preparar</span></article>
           <article class="card quick-metric"><span class="quick-metric__label">En revisión</span><strong class="quick-metric__value">0</strong><span class="quick-metric__meta">Validación interna</span></article>
@@ -1828,7 +1828,7 @@
         </section>
         <section class="card section-card" style="margin-top:18px">
           <div class="section-head"><h2 class="section-title">Estado de datos</h2><span class="status status--build">Fase 1</span></div>
-          <p style="margin:0;color:var(--suave)">Las cifras de Guardián en 2026 son supuestos y escenarios de planeación. Las pruebas capturadas aquí se identifican como datos locales; no se presentan como resultados operativos validados.</p>
+          <p style="margin:0;color:var(--suave)">Las cifras de Guardián Residencial en 2026 son supuestos y escenarios de planeación. Las pruebas capturadas aquí se identifican como datos locales; no se presentan como resultados operativos validados.</p>
         </section>`;
     }
 
