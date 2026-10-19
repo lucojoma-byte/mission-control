@@ -1025,6 +1025,34 @@
       .status::before, .state-pill::before, .sidebar__foot strong::before, .topbar::after, .eyebrow::after { animation: none; }
     }
   </style>
+  <style id="hud-bordes-v3-1">
+    /* Pulido de bordes v3.1: solo radio, grosor y tono. Campo (body.campo-mode) queda igual que en v3. */
+    body:not(.campo-mode) {
+      --borde-hud: rgba(255, 255, 255, .12);
+      --borde-hud-hover: rgba(255, 255, 255, .16);
+    }
+    body:not(.campo-mode) :is(.card, .table-wrap, .photo-modal__dialog, .metrics) { border-radius: 16px; }
+    body:not(.campo-mode) :is(.button, .photo-button, .input, .search, .state-button, .quick-link,
+      .menu-button, .photo-modal__close, .priority, .nav__link, .status, .state-pill, .sidebar__foot) { border-radius: 12px; }
+
+    body:not(.campo-mode) :is(.card, .table-wrap, .photo-modal__dialog, .button, .photo-button, .input, .search,
+      .state-button, .quick-link:not(.quick-link--label), .menu-button, .photo-modal__close, .priority) {
+      border-width: 1.5px;
+      border-style: solid;
+    }
+    body:not(.campo-mode) :is(.card, .table-wrap, .photo-modal__dialog, .button, .photo-button, .input, .search,
+      .state-button, .quick-link:not(.quick-link--label), .menu-button, .photo-modal__close, .priority):not(.button--primary):not(.button--danger):not([aria-pressed="true"]) {
+      border-color: var(--borde-hud);
+    }
+    body:not(.campo-mode) :is(.card, .table-wrap, .button, .photo-button, .state-button, .quick-link:not(.quick-link--label),
+      .menu-button, .photo-modal__close, .priority):not(.button--primary):not(.button--danger):not([aria-pressed="true"]):hover,
+    body:not(.campo-mode) :is(.input, .search):hover:not(:focus) {
+      border-color: var(--borde-hud-hover);
+    }
+    body:not(.campo-mode) :is(.input, .search):focus { border-color: var(--verde); }
+    /* Las esquinas HUD siguen el nuevo borde */
+    body:not(.campo-mode) .card::after { inset: -1.5px; }
+  </style>
 </head>
 <body>
   <div class="app">
