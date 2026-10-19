@@ -3,9 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0b0e14">
+  <meta name="theme-color" content="#09090b">
   <meta name="color-scheme" content="dark">
   <title>Guardian Ops · Holding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --fondo: #0b0e14;
@@ -672,6 +675,204 @@
       .field-actions .button { width: 100%; }
     }
   </style>
+  <style id="hud-dark-telemetry-v2">
+    /* HUD dark telemetry v2: capa visual sobre los estilos base, sin cambiar estructura ni lógica. */
+    :root {
+      --fondo: #09090b;
+      --superficie: rgba(24, 24, 27, .6);
+      --superficie-2: rgba(9, 9, 11, .55);
+      --superficie-3: rgba(39, 39, 42, .6);
+      --borde: rgba(255, 255, 255, .1);
+      --borde-hover: rgba(255, 255, 255, .25);
+      --texto: #fafafa;
+      --suave: #a1a1aa;
+      --acento: #10b981;
+      --acento-2: #6ee7b7;
+      --verde: #10b981;
+      --amarillo: #f59e0b;
+      --rojo: #ef4444;
+      --azul: #06b6d4;
+      --cyan: #06b6d4;
+      --rose: #f43f5e;
+      --radio: 14px;
+      --sombra: 0 1px 0 rgba(255, 255, 255, .04) inset, 0 20px 50px -20px rgba(0, 0, 0, .7);
+      --fuente-ui: "Inter", "Geist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --fuente-mono: "JetBrains Mono", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --transicion: border-color 300ms ease, box-shadow 300ms ease, background-color 300ms ease, color 300ms ease;
+    }
+
+    body {
+      font-family: var(--fuente-ui);
+      font-feature-settings: "cv11", "ss01";
+      background-color: var(--fondo);
+      background-image:
+        radial-gradient(900px 500px at 12% -10%, rgba(16, 185, 129, .07), transparent 60%),
+        radial-gradient(800px 480px at 100% 0%, rgba(6, 182, 212, .06), transparent 60%),
+        radial-gradient(rgba(255, 255, 255, .055) 1px, transparent 1px);
+      background-size: auto, auto, 22px 22px;
+      background-attachment: fixed;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Números, contadores, porcentajes, márgenes y horas: siempre monoespaciados */
+    .quick-metric__value, .metric__value, .report__value, .date, .visit-card__time,
+    .visit-card__ids, #crm-cliente-id, #crm-lead-id, #crm-ticket-id, .state-pill, .status,
+    .state-button, .field-step, td, .sidebar__foot {
+      font-family: var(--fuente-mono);
+      font-variant-numeric: tabular-nums;
+    }
+    .quick-metric__value, .metric__value, .report__value { letter-spacing: -.02em; font-weight: 600; }
+    .eyebrow, .brand__eyebrow, .module-card__kicker, th, .quick-metric__label, .metric__label, .report__label {
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      font-size: .66rem;
+      font-weight: 600;
+    }
+    .eyebrow, .brand__eyebrow { color: var(--cyan); }
+    .page-title { font-weight: 700; letter-spacing: -.035em; }
+    .section-title, .panel-title, .front-title { font-weight: 600; letter-spacing: -.01em; }
+
+    /* Paneles de cristal */
+    .card, .table-wrap, .photo-modal__dialog {
+      --glow: var(--cyan);
+      position: relative;
+      isolation: isolate;
+      border: 1px solid var(--borde);
+      background: var(--superficie);
+      -webkit-backdrop-filter: blur(24px);
+      backdrop-filter: blur(24px);
+      box-shadow: var(--sombra);
+      transition: var(--transicion);
+    }
+    .card:hover, .table-wrap:hover { border-color: var(--borde-hover); }
+    /* Resplandor ambiental en las esquinas superiores de los paneles principales */
+    .section-card::before, .front-card::before, .module-card::before, .report::before, .field-card::before {
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      border-radius: inherit;
+      background:
+        radial-gradient(240px 140px at 0% 0%, color-mix(in srgb, var(--glow) 14%, transparent), transparent 70%),
+        radial-gradient(240px 140px at 100% 0%, color-mix(in srgb, var(--glow) 9%, transparent), transparent 70%);
+      pointer-events: none;
+      content: "";
+    }
+    .section-card, .field-card { --glow: var(--verde); }
+    .module-card { --glow: var(--verde); }
+    .report { --glow: var(--cyan); }
+
+    /* Superficies internas */
+    .metric, .priority, .input, .search, .photo-button, .visit-card, .visit-card__meta li, .visit-card__ids li,
+    .state-button, .field-step, .button, .quick-link, .menu-button, .photo-modal__close {
+      border-color: var(--borde);
+      background-color: var(--superficie-2);
+      transition: var(--transicion);
+    }
+    .metric:hover, .priority:hover, .visit-card:hover, .photo-button:hover,
+    .button:hover, .button:focus-visible, .quick-link:hover, .quick-link:focus-visible, .state-button:hover {
+      border-color: var(--borde-hover);
+    }
+    .input:focus, .search:focus {
+      border-color: color-mix(in srgb, var(--cyan) 60%, transparent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--cyan) 15%, transparent);
+    }
+    .photo-zone {
+      border-color: color-mix(in srgb, var(--cyan) 35%, var(--borde));
+      background: color-mix(in srgb, var(--cyan) 4%, var(--superficie-2));
+    }
+    th { background: rgba(9, 9, 11, .6); color: var(--suave); }
+    th, td { border-bottom-color: var(--borde); }
+    .note { border-top-color: var(--borde); }
+
+    /* Botones */
+    .button--primary {
+      border-color: var(--verde);
+      color: #022c22;
+      background: var(--verde);
+      box-shadow: 0 0 24px -6px color-mix(in srgb, var(--verde) 70%, transparent);
+    }
+    .button--primary:hover, .button--primary:focus-visible { border-color: var(--acento-2); background: #34d399; }
+    .button--danger { border-color: color-mix(in srgb, var(--rojo) 50%, var(--borde)); color: #fca5a5; }
+
+    /* Sidebar y barra rápida de cristal */
+    .sidebar {
+      border-right-color: var(--borde);
+      background: rgba(9, 9, 11, .72);
+      -webkit-backdrop-filter: blur(24px);
+      backdrop-filter: blur(24px);
+    }
+    .brand { border-bottom-color: var(--borde); }
+    .brand__mark {
+      border-color: color-mix(in srgb, var(--verde) 55%, transparent);
+      color: var(--verde);
+      background: color-mix(in srgb, var(--verde) 10%, transparent);
+      box-shadow: 0 0 22px -6px color-mix(in srgb, var(--verde) 80%, transparent);
+      font-family: var(--fuente-mono);
+    }
+    .nav__link { transition: var(--transicion); }
+    .nav__link:hover, .nav__link:focus-visible { border-color: var(--borde); background: rgba(255, 255, 255, .03); }
+    .nav__link[aria-current="page"] {
+      border-color: color-mix(in srgb, var(--verde) 35%, transparent);
+      color: var(--acento-2);
+      background: linear-gradient(90deg, color-mix(in srgb, var(--verde) 14%, transparent), transparent);
+      box-shadow: inset 2px 0 0 var(--verde);
+    }
+    .sidebar__foot { border-color: var(--borde); background: var(--superficie); font-size: .66rem; }
+    .quickbar {
+      border-top-color: var(--borde);
+      background: rgba(9, 9, 11, .78);
+      -webkit-backdrop-filter: blur(24px);
+      backdrop-filter: blur(24px);
+    }
+    .quick-link--label { background: transparent; font-family: var(--fuente-mono); text-transform: uppercase; letter-spacing: .12em; font-size: .66rem; }
+
+    /* Badges de estado con pulso en vivo */
+    @keyframes hud-pulse { 50% { opacity: .45; } }
+    .status, .state-pill { letter-spacing: .08em; font-weight: 600; }
+    .status { border-color: var(--borde); background: var(--superficie-2); }
+    .status::before, .state-pill::before {
+      animation: hud-pulse 2s cubic-bezier(.4, 0, .6, 1) infinite;
+      box-shadow: 0 0 10px currentColor;
+    }
+    .status--active { border-color: color-mix(in srgb, var(--verde) 40%, transparent); color: var(--verde); background: color-mix(in srgb, var(--verde) 8%, transparent); }
+    .status--build { border-color: color-mix(in srgb, var(--amarillo) 40%, transparent); color: var(--amarillo); background: color-mix(in srgb, var(--amarillo) 8%, transparent); }
+
+    /* Acentos semánticos */
+    .quick-metric__value--ok { color: var(--verde); text-shadow: 0 0 18px color-mix(in srgb, var(--verde) 45%, transparent); }
+    .quick-metric__value--warn { color: var(--amarillo); text-shadow: 0 0 18px color-mix(in srgb, var(--amarillo) 40%, transparent); }
+    .quick-metric__value--telemetry { color: var(--cyan); text-shadow: 0 0 18px color-mix(in srgb, var(--cyan) 45%, transparent); }
+    .module-card__kicker { color: var(--verde); }
+    .field-step--active { border-color: color-mix(in srgb, var(--verde) 55%, transparent); color: var(--acento-2); }
+    .priority input[type="checkbox"] { accent-color: var(--verde); }
+    .priority input[type="text"]:focus { border-color: var(--cyan); }
+
+    .front-card { --glow: var(--state-color); border-left-width: 1px; }
+    .front-card::after {
+      position: absolute;
+      top: 14px;
+      bottom: 14px;
+      left: -1px;
+      width: 2px;
+      border-radius: 2px;
+      background: var(--state-color);
+      box-shadow: 0 0 14px var(--state-color);
+      content: "";
+    }
+    .front-card[data-frente-key="casa_kiraz"] { --glow: var(--rose); }
+    .front-card[data-frente-key="casa_kiraz"] .front-title,
+    .front-card[data-frente-key="casa_kiraz"] .metric__value { color: var(--rose); }
+    .front-card[data-frente-key="sistema"] { --glow: var(--cyan); }
+    .front-card[data-frente-key="sistema"] .metric__value { color: var(--cyan); }
+
+    .toast { border-color: var(--verde); background: rgba(24, 24, 27, .9); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+    .toast--error { border-color: var(--rojo); }
+    .photo-modal { background: rgba(9, 9, 11, .86); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .status::before, .state-pill::before { animation: none; }
+      .card, .metric, .button, .nav__link { transition: none; }
+    }
+  </style>
 </head>
 <body>
   <div class="app">
@@ -1294,7 +1495,7 @@
         <section class="metric-strip" aria-label="Resumen del holding">
           <article class="card quick-metric"><span class="quick-metric__label">Módulos habilitados</span><strong class="quick-metric__value">7</strong><span class="quick-metric__meta">Una sola aplicación</span></article>
           <article class="card quick-metric"><span class="quick-metric__label">Capturas de campo</span><strong class="quick-metric__value">${estado.campo.guardados.length}</strong><span class="quick-metric__meta">Registros guardados</span></article>
-          <article class="card quick-metric"><span class="quick-metric__label">Automatizaciones</span><strong class="quick-metric__value quick-metric__value--ok">${estado.frentes.sistema.metricas.automatizaciones_activas}</strong><span class="quick-metric__meta">Activas</span></article>
+          <article class="card quick-metric"><span class="quick-metric__label">Automatizaciones</span><strong class="quick-metric__value quick-metric__value--ok quick-metric__value--telemetry">${estado.frentes.sistema.metricas.automatizaciones_activas}</strong><span class="quick-metric__meta">Activas</span></article>
           <article class="card quick-metric"><span class="quick-metric__label">Alertas</span><strong class="quick-metric__value quick-metric__value--warn">${Object.values(estado.frentes).filter(f => f.semaforo !== "verde").length}</strong><span class="quick-metric__meta">Frentes por atender</span></article>
         </section>
         <div class="panel-head"><h2 class="panel-title">Módulos operativos</h2><p class="panel-subtitle">Arquitectura modular sin separar la app.</p></div>
@@ -1318,7 +1519,7 @@
 
     function renderFrentes() {
       return Object.entries(estado.frentes).map(([clave, frente]) => `
-        <article class="card front-card front-card--${frente.semaforo} ${clave === "sistema" ? "front-card--wide" : ""}">
+        <article class="card front-card front-card--${frente.semaforo} ${clave === "sistema" ? "front-card--wide" : ""}" data-frente-key="${clave}">
           <div class="front-head"><h3 class="front-title">${frente.nombre}</h3><span class="state-pill">${frente.semaforo}</span></div>
           <div class="state-control" role="group" aria-label="Estado de ${frente.nombre}">
             <span class="state-control__label">Estado operativo:</span>
@@ -1600,7 +1801,7 @@
       return `
         ${cabecera("GUARDIÁN · PROPUESTAS", "Cotizaciones", "Bandeja preparada para convertir capturas de campo en propuestas revisables.", "En construcción")}
         <section class="metric-strip">
-          <article class="card quick-metric"><span class="quick-metric__label">Borradores</span><strong class="quick-metric__value">0</strong><span class="quick-metric__meta">Por preparar</span></article>
+          <article class="card quick-metric"><span class="quick-metric__label">Borradores</span><strong class="quick-metric__value quick-metric__value--warn">0</strong><span class="quick-metric__meta">Por preparar</span></article>
           <article class="card quick-metric"><span class="quick-metric__label">En revisión</span><strong class="quick-metric__value">0</strong><span class="quick-metric__meta">Validación interna</span></article>
           <article class="card quick-metric"><span class="quick-metric__label">Enviadas</span><strong class="quick-metric__value">0</strong><span class="quick-metric__meta">Esperando cliente</span></article>
           <article class="card quick-metric"><span class="quick-metric__label">Aprobadas</span><strong class="quick-metric__value">0</strong><span class="quick-metric__meta">Listas para anticipo</span></article>
