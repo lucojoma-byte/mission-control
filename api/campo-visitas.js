@@ -1,8 +1,6 @@
-const fs = require('node:fs/promises');
-const path = require('node:path');
 const crypto = require('node:crypto');
-const { put } = require('@vercel/blob');
 const { requireAuth } = require('../lib/auth');
+const { CampoStorageError, crearAlmacenCampo, validarFotos } = require('../lib/campo-storage');
 
 function responderJson(res, statusCode, payload) {
   res.statusCode = statusCode;
@@ -25,59 +23,17 @@ function normalizarBody(body) {
 function limpiarNombreArchivo(nombre = 'foto') {
   const limpio = String(nombre)
     .normalize('NFKD')
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
-    .toLowerCase();
+    .toLowerCase()
+    .slice(0, 60);
   return limpio || 'foto';
-}
-
-function extensionDesdeMime(mime = '') {
-  if (mime.includes('png')) return 'png';
-  if (mime.includes('webp')) return 'webp';
-  return 'jpg';
 }
 
 function consecutivoDesdeTimestamp(timestamp = Date.now(), extra = 0) {
   const base = String(Number(timestamp) + extra).slice(-6);
   return base.padStart(6, '0');
-}
-
-function parsearDataUrl(dataUrl = '') {
-  const match = /^data:([^;]+);base64,(.+)$/.exec(String(dataUrl));
-  if (!match) throw new Error('Formato de imagen no válido.');
-  return {
-    contentType: match[1],
-    buffer: Buffer.from(match[2], 'base64'),
-  };
-}
-
-async function guardarEnDesarrollo(relPath, buffer, contentType) {
-  const root = path.join(process.cwd(), '.dev-storage');
-  const absPath = path.join(root, relPath);
-  await fs.mkdir(path.dirname(absPath), { recursive: true });
-  await fs.writeFile(absPath, buffer);
-  return {
-    url: `local://${relPath}`,
-    pathname: relPath,
-    contentType,
-  };
-}
-
-async function guardarBlob(relPath, body, contentType) {
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
-    return put(relPath, body, {
-      access: 'public',
-      addRandomSuffix: false,
-      contentType,
-    });
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    return guardarEnDesarrollo(relPath, body, contentType);
-  }
-
-  throw new Error('Falta configurar BLOB_READ_WRITE_TOKEN en Vercel para guardar fotos reales.');
 }
 
 module.exports = async (req, res) => {
@@ -88,13 +44,21 @@ module.exports = async (req, res) => {
 
   if (!requireAuth(req, res)) return;
 
+  const guardados = [];
+  let almacen = null;
   try {
     const body = normalizarBody(req.body);
     const visita = body && typeof body.visita === 'object' ? body.visita : null;
-    const fotos = Array.isArray(body?.fotos) ? body.fotos : [];
 
     if (!visita || !String(visita.cliente || '').trim() || !String(visita.servicio || '').trim()) {
       return responderJson(res, 400, { ok: false, error: 'Cliente y servicio son obligatorios.' });
+    }
+
+    // Se valida todo antes de escribir: si una foto falla, no queda nada a medias.
+    const fotos = validarFotos(body.fotos);
+    almacen = crearAlmacenCampo();
+    if (!almacen.modo) {
+      throw new CampoStorageError('Falta conectar el Blob store privado. No se guardó nada.', 503);
     }
 
     const stamp = Date.now();
@@ -106,18 +70,15 @@ module.exports = async (req, res) => {
 
     const fotosGuardadas = [];
     for (let indice = 0; indice < fotos.length; indice += 1) {
-      const foto = fotos[indice] || {};
-      if (!foto.dataUrl) continue;
-      const { contentType, buffer } = parsearDataUrl(foto.dataUrl);
-      const extension = extensionDesdeMime(contentType);
-      const nombreBase = limpiarNombreArchivo((foto.nombre || `foto-${indice + 1}`).replace(/\.[^.]+$/, ''));
-      const relPath = `campo/fotos/${visitId}/${String(indice + 1).padStart(2, '0')}-${nombreBase}.${extension}`;
-      const blob = await guardarBlob(relPath, buffer, contentType);
+      const nombreBase = limpiarNombreArchivo(String(fotos[indice].nombre || `foto-${indice + 1}`).replace(/\.[^.]+$/, ''));
+      const ruta = `campo/fotos/${visitId}/${String(indice + 1).padStart(2, '0')}-${nombreBase}.jpg`;
+      const archivo = await almacen.guardar(ruta, fotos[indice].buffer);
+      guardados.push(archivo.pathname);
       fotosGuardadas.push({
-        nombre: `${nombreBase}.${extension}`,
-        url: blob.url,
-        pathname: blob.pathname,
-        contentType,
+        nombre: `${nombreBase}.jpg`,
+        url: archivo.url,
+        pathname: archivo.pathname,
+        contentType: archivo.contentType,
       });
     }
 
@@ -127,7 +88,7 @@ module.exports = async (req, res) => {
       leadId,
       ticketId,
       guardadoEn: createdAt,
-      storage: process.env.BLOB_READ_WRITE_TOKEN ? 'vercel-blob' : 'local-dev-fallback',
+      storage: almacen.modo,
       cliente: visita.cliente || '',
       telefono: visita.telefono || '',
       direccion: visita.direccion || '',
@@ -139,15 +100,14 @@ module.exports = async (req, res) => {
       fechaSeguimiento: visita.fechaSeguimiento || '',
       responsable: visita.responsable || '',
       fotosResumen: visita.fotos || '',
-      fotos: fotosGuardadas,
+      fotos: fotosGuardadas.map(({ nombre, pathname, contentType }) => ({ nombre, pathname, contentType })),
     };
 
-    const registroPath = `campo/visitas/${visitId}.json`;
-    const registroBlob = await guardarBlob(
-      registroPath,
+    const registroArchivo = await almacen.guardar(
+      `campo/visitas/${visitId}.json`,
       Buffer.from(JSON.stringify(registro, null, 2), 'utf8'),
-      'application/json; charset=utf-8',
     );
+    guardados.length = 0;
 
     return responderJson(res, 200, {
       ok: true,
@@ -157,16 +117,24 @@ module.exports = async (req, res) => {
         leadId,
         ticketId,
         guardadoEn: createdAt,
-        storage: registro.storage,
-        registroUrl: registroBlob.url,
-        registroPath: registroBlob.pathname,
+        storage: almacen.modo,
+        registroUrl: registroArchivo.url,
+        registroPath: registroArchivo.pathname,
         fotos: fotosGuardadas,
       },
     });
   } catch (error) {
-    return responderJson(res, 500, {
-      ok: false,
-      error: error instanceof Error ? error.message : 'No se pudo guardar la visita.',
-    });
+    if (guardados.length && almacen) {
+      try {
+        await almacen.borrar(guardados);
+      } catch (limpiezaError) {
+        console.error('Campo: no se pudieron limpiar archivos parciales', { rutas: guardados, message: limpiezaError?.message });
+      }
+    }
+    if (error instanceof CampoStorageError) {
+      return responderJson(res, error.statusCode, { ok: false, error: error.message });
+    }
+    console.error('Campo: fallo al guardar visita', { name: error?.name, message: error?.message });
+    return responderJson(res, 500, { ok: false, error: 'No se pudo guardar la visita. Intenta de nuevo.' });
   }
 };

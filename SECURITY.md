@@ -42,3 +42,13 @@ node --check lib/auth.js
 ## Alcance
 
 Este parche contiene el acceso a datos. No sustituye un sistema completo de usuarios, roles, recuperación de contraseña ni auditoría por persona. Es una contención adecuada para el piloto privado de un solo propietario.
+
+## Fotos y registros de Campo (almacenamiento privado)
+
+- Fotos y registros JSON de Campo se guardan en un **Blob store privado**, separado del store público histórico (`mission-control-public`).
+- Variable requerida: `BLOB_PRIVATE_READ_WRITE_TOKEN`. Se crea sola al conectar el store privado al proyecto con el prefijo de variables `BLOB_PRIVATE`.
+- Si falta en Preview o Production, `/api/campo-visitas` responde `503` y **no** guarda en el store público.
+- No existen URLs públicas: fotos y registros se leen solo por `GET /api/campo-archivo?path=…`, que exige sesión válida (401 sin sesión o con sesión vencida) y responde con `Cache-Control: private, no-store`.
+- El cliente redibuja cada foto en canvas y la exporta como JPEG nuevo (sin EXIF/GPS), máximo 4 fotos, 1 MB cada una y 3 MB en total. El servidor rechaza cualquier JPEG que conserve EXIF.
+- Si una escritura falla a mitad de la visita, se borran los archivos ya subidos.
+- Las fotos antiguas del store público no se migran ni se borran en este cambio.
