@@ -908,8 +908,34 @@
       };
     }
 
+    async function solicitarAccesoPrivado() {
+      const password = window.prompt("Guardian Ops es privado. Escribe la contraseña de acceso:");
+      if (!password) throw new Error("Acceso cancelado.");
+
+      const respuesta = await fetch("/api/auth-login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await respuesta.json().catch(() => ({}));
+      if (!respuesta.ok || !data?.ok) {
+        throw new Error(data?.error || "No se pudo iniciar la sesión privada.");
+      }
+    }
+
+    async function fetchProtegido(url, opciones = {}) {
+      const configuracion = { ...opciones, credentials: "same-origin" };
+      let respuesta = await fetch(url, configuracion);
+      if (respuesta.status === 401) {
+        await solicitarAccesoPrivado();
+        respuesta = await fetch(url, configuracion);
+      }
+      return respuesta;
+    }
+
     async function guardarProspectoEnSheets(prospecto = {}, visita = null) {
-      const respuesta = await fetch("/api/crm-prospectos", {
+      const respuesta = await fetchProtegido("/api/crm-prospectos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(construirPayloadSheets(prospecto, visita)),
@@ -936,7 +962,7 @@
       guardarEstado();
 
       cargaCRMDesdeSheetsActiva = (async () => {
-        const respuesta = await fetch("/api/crm-prospectos");
+        const respuesta = await fetchProtegido("/api/crm-prospectos");
         const data = await respuesta.json().catch(() => ({}));
         if (!respuesta.ok || !data?.ok) {
           throw new Error(data?.error || "No pude leer Google Sheets.");
@@ -1049,7 +1075,7 @@
     }
 
     async function guardarVisitaRemota(visita) {
-      const respuesta = await fetch("/api/campo-visitas", {
+      const respuesta = await fetchProtegido("/api/campo-visitas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
