@@ -891,8 +891,8 @@
     function construirPayloadSheets(prospecto = {}, visita = null) {
       const notas = [
         prospecto.resumen ? `Resumen CRM:\n${prospecto.resumen}` : "",
-        visita?.registroUrl ? `Registro Campo: ${visita.registroUrl}` : prospecto.registroUrl ? `Registro Campo: ${prospecto.registroUrl}` : "",
-        Array.isArray(visita?.fotosRemotas) && visita.fotosRemotas.length ? `Fotos: ${visita.fotosRemotas.map((foto) => foto.url).join(", ")}` : "",
+        visita?.registroPath ? `Registro Campo: ${visita.registroPath}` : visita?.registroUrl ? `Registro Campo: ${visita.registroUrl}` : prospecto.registroUrl ? `Registro Campo: ${prospecto.registroUrl}` : "",
+        Array.isArray(visita?.fotosRemotas) && visita.fotosRemotas.length ? `Fotos privadas (ver en Guardian Ops): ${visita.fotosRemotas.map((foto) => foto.pathname || foto.nombre).join(", ")}` : "",
       ].filter(Boolean).join("\n\n");
 
       return {
@@ -1735,33 +1735,59 @@
         }));
       };
       renderizarPreviewsEnDOM();
-      const prepararPreviews = async (archivos) => Promise.all(Array.from(archivos).map((archivo) => new Promise((resolve) => {
-        const lector = new FileReader();
-        lector.onload = () => {
-          const imagen = new Image();
-          imagen.onload = () => {
-            const ladoMaximo = 1600;
-            const escala = Math.min(1, ladoMaximo / Math.max(imagen.width || 1, imagen.height || 1));
-            const ancho = Math.max(1, Math.round((imagen.width || 1) * escala));
-            const alto = Math.max(1, Math.round((imagen.height || 1) * escala));
-            const canvas = document.createElement("canvas");
-            canvas.width = ancho;
-            canvas.height = alto;
-            const contexto = canvas.getContext("2d");
-            if (!contexto) {
-              resolve({ nombre: archivo.name || "foto-capturada.jpg", url: lector.result });
-              return;
-            }
-            contexto.drawImage(imagen, 0, 0, ancho, alto);
-            const nombreBase = (archivo.name || "foto-capturada").replace(/\.[^.]+$/, "");
-            resolve({ nombre: `${nombreBase}.jpg`, url: canvas.toDataURL("image/jpeg", 0.82) });
-          };
-          imagen.onerror = () => resolve({ nombre: archivo.name || "Foto capturada", url: lector.result });
-          imagen.src = lector.result;
-        };
-        lector.onerror = () => resolve(null);
-        lector.readAsDataURL(archivo);
-      }))).then((items) => items.filter(Boolean));
+      // Cada foto se redibuja en canvas y se exporta como JPEG nuevo: eso elimina EXIF/GPS,
+      // modelo del teléfono y fecha original. Si algo falla, la foto se rechaza; nunca se
+      // sube el archivo original como alternativa.
+      const MAX_FOTOS_CAMPO = 4;
+      const MAX_BYTES_ORIGINAL = 15 * 1024 * 1024;
+      const MAX_BYTES_COMPRIMIDA = 950 * 1000;
+      const bytesDeDataUrl = (dataUrl) => Math.floor((dataUrl.length - dataUrl.indexOf(",") - 1) * 3 / 4);
+      const cargarImagen = (archivo) => new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(archivo);
+        const imagen = new Image();
+        imagen.onload = () => { URL.revokeObjectURL(url); resolve(imagen); };
+        imagen.onerror = () => { URL.revokeObjectURL(url); reject(new Error("formato no compatible")); };
+        imagen.src = url;
+      });
+      const comprimirSinMetadatos = (imagen) => {
+        for (const ladoMaximo of [1600, 1280, 1024]) {
+          const escala = Math.min(1, ladoMaximo / Math.max(imagen.naturalWidth || 1, imagen.naturalHeight || 1));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round((imagen.naturalWidth || 1) * escala));
+          canvas.height = Math.max(1, Math.round((imagen.naturalHeight || 1) * escala));
+          const contexto = canvas.getContext("2d");
+          if (!contexto) throw new Error("el navegador no pudo procesar la imagen");
+          contexto.drawImage(imagen, 0, 0, canvas.width, canvas.height);
+          for (const calidad of [0.8, 0.7, 0.6]) {
+            const dataUrl = canvas.toDataURL("image/jpeg", calidad);
+            if (!dataUrl.startsWith("data:image/jpeg;base64,")) throw new Error("el navegador no generó JPEG");
+            if (bytesDeDataUrl(dataUrl) <= MAX_BYTES_COMPRIMIDA) return dataUrl;
+          }
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+        throw new Error("sigue pesando más de 1 MB tras comprimir");
+      };
+      const prepararPreviews = async (archivos) => {
+        const lista = Array.from(archivos || []);
+        if (lista.length > MAX_FOTOS_CAMPO) {
+          mostrarToast(`Máximo ${MAX_FOTOS_CAMPO} fotos por visita. Elige menos fotos.`, "error");
+          return [];
+        }
+        const listos = [];
+        for (const archivo of lista) {
+          const nombreBase = (archivo.name || "foto-capturada").replace(/\.[^.]+$/, "");
+          try {
+            if (archivo.size > MAX_BYTES_ORIGINAL) throw new Error("supera 15 MB");
+            const imagen = await cargarImagen(archivo);
+            listos.push({ nombre: `${nombreBase}.jpg`, url: comprimirSinMetadatos(imagen) });
+          } catch (error) {
+            mostrarToast(`No se pudo preparar "${nombreBase}": ${error.message}. No se agregó ninguna foto.`, "error");
+            return [];
+          }
+        }
+        return listos;
+      };
       const actualizarResumenFotos = (archivos, origen) => {
         estado.campo.borrador.fotos = archivos.length
           ? `${archivos.length} foto${archivos.length === 1 ? "" : "s"} ${origen} lista(s) para guardar`
@@ -1773,12 +1799,12 @@
       const fotosGaleria = document.getElementById("campo-fotos-galeria");
       if (fotosCamara) fotosCamara.addEventListener("change", async () => {
         previewsCampo = await prepararPreviews(fotosCamara.files);
-        actualizarResumenFotos(fotosCamara.files, "tomada(s) con cámara");
+        actualizarResumenFotos(previewsCampo, "tomada(s) con cámara");
         renderizarPreviewsEnDOM();
       });
       if (fotosGaleria) fotosGaleria.addEventListener("change", async () => {
         previewsCampo = await prepararPreviews(fotosGaleria.files);
-        actualizarResumenFotos(fotosGaleria.files, "seleccionada(s) desde galería");
+        actualizarResumenFotos(previewsCampo, "seleccionada(s) desde galería");
         renderizarPreviewsEnDOM();
       });
       document.getElementById("campo-atras").addEventListener("click", () => {
