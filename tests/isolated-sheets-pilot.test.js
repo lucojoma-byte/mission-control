@@ -5,36 +5,56 @@ const { createIsolatedSheetTarget } = require('../lib/isolated-sheets-pilot');
 test('crea spreadsheet independiente cuando Google lo permite', async () => {
   const sheets = { spreadsheets: {
     create: async () => ({ data: { spreadsheetId: 'new-sheet', spreadsheetUrl: 'https://example.invalid/new-sheet' } }),
-    batchUpdate: async () => { throw new Error('no debe llamarse'); },
   } };
-  const result = await createIsolatedSheetTarget({ sheets, runId: 123, fallbackSpreadsheetId: 'fallback' });
+  const result = await createIsolatedSheetTarget({ sheets, runId: 123 });
   assert.deepEqual(result, {
     spreadsheetId: 'new-sheet', spreadsheetUrl: 'https://example.invalid/new-sheet',
     sheetName: 'CRM_TEST', mode: 'new_spreadsheet',
   });
 });
 
-test('si la cuenta no puede crear archivo usa una pestaña aislada sin tocar CRM_PROVISIONAL', async () => {
-  let addRequest;
+test('usa exclusivamente el spreadsheet de prueba configurado sin crear pestañas', async () => {
   const sheets = { spreadsheets: {
-    create: async () => { const error = new Error('The caller does not have permission'); error.code = 403; throw error; },
-    batchUpdate: async (input) => { addRequest = input; return { data: {} }; },
+    create: async () => { throw new Error('no debe llamarse'); },
+    batchUpdate: async () => { throw new Error('no debe llamarse'); },
   } };
-  const result = await createIsolatedSheetTarget({ sheets, runId: 123, fallbackSpreadsheetId: 'shared-sheet' });
-  assert.equal(result.spreadsheetId, 'shared-sheet');
-  assert.equal(result.sheetName, 'GUARDIAN_ATOMIC_TEST_123');
-  assert.equal(result.mode, 'isolated_worksheet');
-  assert.equal(addRequest.requestBody.requests[0].addSheet.properties.title, 'GUARDIAN_ATOMIC_TEST_123');
-  assert.notEqual(result.sheetName, 'CRM_PROVISIONAL');
+  const result = await createIsolatedSheetTarget({
+    sheets,
+    runId: 123,
+    testSpreadsheetId: 'exclusive-test-sheet',
+  });
+  assert.deepEqual(result, {
+    spreadsheetId: 'exclusive-test-sheet',
+    spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/exclusive-test-sheet',
+    sheetName: 'CRM_TEST',
+    mode: 'configured_test_spreadsheet',
+  });
+});
+
+test('si Google niega crear una hoja nueva falla sin tocar otro spreadsheet', async () => {
+  let batchUpdateCalled = false;
+  const sheets = { spreadsheets: {
+    create: async () => {
+      const error = new Error('The caller does not have permission');
+      error.code = 403;
+      throw error;
+    },
+    batchUpdate: async () => { batchUpdateCalled = true; },
+  } };
+  await assert.rejects(
+    () => createIsolatedSheetTarget({ sheets, runId: 123 }),
+    /does not have permission/,
+  );
+  assert.equal(batchUpdateCalled, false);
 });
 
 test('no usa fallback para errores distintos a permisos', async () => {
   const sheets = { spreadsheets: {
     create: async () => { throw new Error('network unavailable'); },
-    batchUpdate: async () => {},
+    batchUpdate: async () => { throw new Error('no debe llamarse'); },
   } };
   await assert.rejects(
-    () => createIsolatedSheetTarget({ sheets, runId: 123, fallbackSpreadsheetId: 'shared-sheet' }),
+    () => createIsolatedSheetTarget({ sheets, runId: 123 }),
     /network unavailable/,
   );
 });

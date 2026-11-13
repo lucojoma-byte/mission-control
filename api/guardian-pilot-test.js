@@ -5,8 +5,6 @@ const { AtomicLeadWriter, VercelBlobClaimStore, planLegacyBackfill } = require('
 const { CANONICAL_HEADERS, GoogleSheetsLeadRepository } = require('../lib/google-sheets-lead-repository');
 const { createIsolatedSheetTarget } = require('../lib/isolated-sheets-pilot');
 
-const FALLBACK_SPREADSHEET_ID = '11t7qh7tnS6za21FAfa9ZCeG3r0hnB7uFmqUkZLK0d2E';
-
 function respond(res, statusCode, payload) {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -63,7 +61,7 @@ async function fullRun() {
   const target = await createIsolatedSheetTarget({
     sheets,
     runId,
-    fallbackSpreadsheetId: text(process.env.GOOGLE_SHEETS_SPREADSHEET_ID) || FALLBACK_SPREADSHEET_ID,
+    testSpreadsheetId: text(process.env.GUARDIAN_TEST_SPREADSHEET_ID),
   });
   const { spreadsheetId, spreadsheetUrl, sheetName } = target;
 
@@ -154,6 +152,11 @@ module.exports = async function guardianPilotTest(req, res) {
     }
     return respond(res, 400, { ok: false, error: 'Acción no permitida.' });
   } catch (error) {
-    return respond(res, 500, { ok: false, error: error?.message || 'Falló el diagnóstico.' });
+    console.error('Guardian pilot diagnostic failed', {
+      name: error?.name || 'Error',
+      message: error?.message || 'unknown',
+      stack: error?.stack,
+    });
+    return respond(res, 500, { ok: false, error: 'Falló el diagnóstico. Revisa los registros del servidor.' });
   }
 };

@@ -21,7 +21,11 @@ function prepararEnv() {
   process.env.MISSION_CONTROL_SESSION_SECRET = 'secreto-local-de-prueba-con-longitud-suficiente';
 }
 
-test.beforeEach(prepararEnv);
+test.beforeEach(() => {
+  prepararEnv();
+  login._resetRateLimitForTests();
+});
+
 
 test('token firmado acepta sesión vigente y rechaza alteración/expiración', () => {
   const ahora = Date.now();
@@ -47,6 +51,20 @@ test('login inválido devuelve 401 sin cookie', async () => {
   assert.equal(res.headers['Set-Cookie'], undefined);
 });
 
+test('login limita cinco fallos por IP en 15 minutos', async () => {
+  const headers = { 'x-forwarded-for': '203.0.113.7' };
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const res = respuestaFalsa();
+    await login({ method: 'POST', body: { password: 'incorrecta' }, headers }, res);
+    assert.equal(res.statusCode, 401);
+  }
+  const limited = respuestaFalsa();
+  await login({ method: 'POST', body: { password: 'prueba-local-segura' }, headers }, limited);
+  assert.equal(limited.statusCode, 429);
+  assert.equal(limited.headers['Retry-After'], '900');
+  assert.equal(JSON.parse(limited.body).error, 'Demasiados intentos. Intenta más tarde.');
+});
+
 test('cookie firmada permite continuar a un endpoint protegido', () => {
   const token = auth.crearTokenSesion(process.env.MISSION_CONTROL_SESSION_SECRET);
   const res = respuestaFalsa();
@@ -55,6 +73,16 @@ test('cookie firmada permite continuar a un endpoint protegido', () => {
   }, res);
   assert.equal(permitido, true);
   assert.equal(res.statusCode, 0);
+});
+
+test('cookie malformada se trata como sesión inválida y responde 401', () => {
+  const res = respuestaFalsa();
+  const permitido = auth.requireAuth({
+    headers: { cookie: `${auth.COOKIE_NAME}=%E0%A4%A` },
+  }, res);
+  assert.equal(permitido, false);
+  assert.equal(res.statusCode, 401);
+  assert.equal(JSON.parse(res.body).error, 'Autenticación requerida.');
 });
 
 test('CRM anónimo devuelve 401 antes de consultar Google', async () => {

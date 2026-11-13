@@ -6,7 +6,7 @@ Los endpoints de CRM y Campo no deben aceptar solicitudes anónimas porque proce
 
 ## Variables requeridas en Vercel
 
-- `MISSION_CONTROL_PASSWORD`: contraseña de acceso elegida por Joe. No se guarda en Git.
+- `MISSION_CONTROL_PASSWORD`: contraseña de acceso elegida por Joe. No se guarda en Git. Debe tener **al menos 16 caracteres** y ser única para este sistema.
 - `MISSION_CONTROL_SESSION_SECRET`: valor aleatorio largo para firmar cookies. No se guarda en Git.
 
 Si falta cualquiera de las dos, los endpoints protegidos responden `503` y no acceden a Google Sheets ni Vercel Blob.
