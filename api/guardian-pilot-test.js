@@ -137,7 +137,7 @@ module.exports = async function guardianPilotTest(req, res) {
     res.setHeader('Allow', 'POST');
     return respond(res, 405, { ok: false, error: 'Método no permitido.' });
   }
-  if (!requireAuth(req, res)) return;
+  if (!requireAuth(req, res, { roles: ['dueno'] })) return;
   if (process.env.GUARDIAN_PILOT_TEST_ENABLED !== 'true') {
     return respond(res, 404, { ok: false, error: 'Diagnóstico deshabilitado.' });
   }

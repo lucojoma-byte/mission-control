@@ -52,3 +52,16 @@ Este parche contiene el acceso a datos. No sustituye un sistema completo de usua
 - El cliente redibuja cada foto en canvas y la exporta como JPEG nuevo (sin EXIF/GPS), máximo 4 fotos, 1 MB cada una y 3 MB en total. El servidor rechaza cualquier JPEG que conserve EXIF.
 - Si una escritura falla a mitad de la visita, se borran los archivos ya subidos.
 - Las fotos antiguas del store público no se migran ni se borran en este cambio.
+
+
+## Usuarios por persona y roles
+
+- El Dueño entra **sin usuario** con `MISSION_CONTROL_PASSWORD` (acceso de respaldo que no depende de nada más).
+- Las demás personas tienen usuario propio, guardado en el Blob privado (`sistema/usuarios.json`) con contraseña cifrada (scrypt + sal). Ese archivo no se sirve por `/api/campo-archivo`.
+- Roles:
+  - **Dueño:** todo; administra todos los usuarios.
+  - **Secretaria:** CRM completo, Campo, fotos; crea, desactiva y cambia contraseña solo de usuarios de **Campo**.
+  - **Campo:** captura visitas y fotos; puede enviar su visita al CRM pero **no** leer la cartera (403).
+- Cada visita guarda `capturadoPor` (usuario, nombre, rol) y usa ese nombre como responsable si no se escribió otro.
+- Desactivar un usuario impide nuevos accesos de inmediato; una sesión ya abierta dura hasta 8 h. Para expulsar a todos al instante, cambia `MISSION_CONTROL_SESSION_SECRET` y haz redeploy.
+- Contraseñas de personas: mínimo 10 caracteres, entregadas en persona.

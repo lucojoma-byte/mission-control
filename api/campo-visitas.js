@@ -42,7 +42,8 @@ module.exports = async (req, res) => {
     return responderJson(res, 405, { ok: false, error: 'Método no permitido.' });
   }
 
-  if (!requireAuth(req, res)) return;
+  const sesion = requireAuth(req, res);
+  if (!sesion) return;
 
   const guardados = [];
   let almacen = null;
@@ -99,7 +100,8 @@ module.exports = async (req, res) => {
       condicion: visita.condicion || '',
       notas: visita.notas || '',
       fechaSeguimiento: visita.fechaSeguimiento || '',
-      responsable: visita.responsable || '',
+      responsable: visita.responsable || sesion.nombre || '',
+      capturadoPor: { usuario: sesion.usuario, nombre: sesion.nombre, rol: sesion.rol },
       fotosResumen: visita.fotos || '',
       fotos: fotosGuardadas.map(({ nombre, pathname, contentType }) => ({ nombre, pathname, contentType })),
     };
@@ -121,6 +123,8 @@ module.exports = async (req, res) => {
         storage: almacen.modo,
         registroUrl: registroArchivo.url,
         registroPath: registroArchivo.pathname,
+        responsable: registro.responsable,
+        capturadoPor: registro.capturadoPor,
         fotos: fotosGuardadas,
       },
     });
