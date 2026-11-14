@@ -2124,7 +2124,8 @@
           const crm = await sincronizarVisitaConCRM(visitaGuardada);
           const fotosTexto = visitaRemota.fotos?.length ? ` con ${visitaRemota.fotos.length} foto(s)` : " sin fotos";
           visitasCompartidas.ultimaCarga = 0;
-          if (crm.ok) mostrarToast(`Visita guardada${fotosTexto} y enviada al CRM (${visitaGuardada.ticketId}).`);
+          const avisoTexto = (visitaRemota.avisos || []).some((aviso) => aviso.enviado) ? " Aviso enviado." : "";
+          if (crm.ok) mostrarToast(`Visita guardada${fotosTexto} y enviada al CRM (${visitaGuardada.ticketId}).${avisoTexto}`);
           else mostrarToast(`Visita guardada${fotosTexto}, pero el CRM no respondió: ${crm.error}. Usa "Pasar a CRM" para reintentar.`, "error");
           renderRuta();
         } catch (error) {

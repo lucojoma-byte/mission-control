@@ -65,3 +65,14 @@ Este parche contiene el acceso a datos. No sustituye un sistema completo de usua
 - Cada visita guarda `capturadoPor` (usuario, nombre, rol) y usa ese nombre como responsable si no se escribió otro.
 - Desactivar un usuario impide nuevos accesos de inmediato; una sesión ya abierta dura hasta 8 h. Para expulsar a todos al instante, cambia `MISSION_CONTROL_SESSION_SECRET` y haz redeploy.
 - Contraseñas de personas: mínimo 10 caracteres, entregadas en persona.
+
+
+## Avisos de visitas nuevas
+
+Al guardar una visita se avisa por los canales configurados. Ninguno está activo hasta cargar sus variables en Vercel (Production):
+
+- **Correo (Resend):** `AVISOS_RESEND_API_KEY`, `AVISOS_EMAIL_DE` (remitente verificado en Resend), `AVISOS_EMAIL_PARA` (uno o varios correos, separados por coma).
+- **Telegram:** `AVISOS_TELEGRAM_BOT_TOKEN`, `AVISOS_TELEGRAM_CHAT_ID`.
+- Opcional: `AVISOS_URL_BASE` (por ejemplo `https://mission-control-wheat-six.vercel.app`) para fijar el dominio del enlace.
+
+El aviso lleva solo ticket, cliente, servicio, zona, quién capturó, número de fotos y el enlace "Ver visita y fotos", que pide contraseña. **No** lleva teléfono, dirección ni fotos. Si el proveedor falla, la visita se guarda igual (tiempo máximo de 4 s por canal).
