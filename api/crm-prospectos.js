@@ -70,6 +70,13 @@ function credencialesDisponibles() {
   return Boolean(valorTexto(process.env.GOOGLE_SHEETS_CLIENT_EMAIL) && privateKeyNormalizada());
 }
 
+let fabricaSheets = null;
+
+function crearClienteSheets() {
+  if (fabricaSheets) return fabricaSheets();
+  return google.sheets({ version: 'v4', auth: authGoogle() });
+}
+
 function authGoogle() {
   return new google.auth.JWT({
     email: valorTexto(process.env.GOOGLE_SHEETS_CLIENT_EMAIL),
@@ -152,8 +159,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    const auth = authGoogle();
-    const sheets = google.sheets({ version: 'v4', auth });
+    const sheets = crearClienteSheets();
     const spreadsheetId = valorTexto(process.env.GOOGLE_SHEETS_SPREADSHEET_ID) || SPREADSHEET_ID_POR_DEFECTO;
     const sheetName = valorTexto(process.env.GOOGLE_SHEETS_SHEET_NAME) || HOJA_POR_DEFECTO;
 
@@ -192,6 +198,28 @@ module.exports = async (req, res) => {
       return responderJson(res, 400, { ok: false, error: 'El nombre del cliente es obligatorio.' });
     }
 
+    // Idempotencia por Lead ID: si la visita ya está en la hoja (guardado automático
+    // desde Campo y luego "Pasar a CRM", o un reintento), no se crea otra fila.
+    const leadId = valorTexto(prospecto.leadId);
+    if (leadId) {
+      const existentes = await sheets.spreadsheets.values.get({ spreadsheetId, range: `${sheetName}!A:A` });
+      const ids = (existentes.data.values || []).map((fila) => valorTexto(fila[0]));
+      const indice = ids.indexOf(leadId);
+      if (indice > 0) {
+        return responderJson(res, 200, {
+          ok: true,
+          duplicate: true,
+          sheet: {
+            spreadsheetId,
+            sheetName,
+            updatedRange: `${sheetName}!A${indice + 1}`,
+            updatedRows: 0,
+            updatedAt: new Date().toISOString(),
+          },
+        });
+      }
+    }
+
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
       range: `${sheetName}!A:W`,
@@ -219,3 +247,5 @@ module.exports = async (req, res) => {
     });
   }
 };
+
+module.exports._setSheetsFactoryForTests = (fabrica) => { fabricaSheets = fabrica; };

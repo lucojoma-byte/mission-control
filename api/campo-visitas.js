@@ -93,6 +93,7 @@ module.exports = async (req, res) => {
       telefono: visita.telefono || '',
       direccion: visita.direccion || '',
       servicio: visita.servicio || '',
+      zona: visita.zona || '',
       ancho: visita.ancho || '',
       alto: visita.alto || '',
       condicion: visita.condicion || '',

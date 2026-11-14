@@ -868,7 +868,7 @@
         cliente: visita.cliente || "",
         telefono: visita.telefono || "",
         direccion: visita.direccion || "",
-        zona: zonaDesdeDireccion(visita.direccion),
+        zona: visita.zona || zonaDesdeDireccion(visita.direccion),
         interes: visita.servicio || "",
         estado: estadoCRMDesdeVisita(visita),
         siguienteAccion: siguienteAccionDesdeVisita(visita),
@@ -946,6 +946,35 @@
         throw new Error(data?.error || "No se pudo sincronizar el prospecto con Google Sheets.");
       }
       return data;
+    }
+
+    // Envía la visita recién guardada a la hoja del CRM con sus mismos Cliente/Lead/Ticket ID.
+    // El servidor ignora el envío si ese Lead ID ya existe, así que reintentar no duplica filas.
+    async function sincronizarVisitaConCRM(visita) {
+      if (!visita) return { ok: false, error: "visita no encontrada" };
+      const borrador = crearBorradorCRMDesdeVisita(visita);
+      const prospecto = normalizarProspectoCRM({ ...borrador, origen: "campo" }, estado.crm.prospectos.length);
+      try {
+        const respuesta = await guardarProspectoEnSheets(prospecto, visita);
+        const sincronizacion = {
+          pendiente: false,
+          ok: true,
+          actualizadoEn: respuesta?.sheet?.updatedAt || new Date().toISOString(),
+          fila: respuesta?.sheet?.updatedRange || "",
+        };
+        if (!estado.crm.prospectos.some((item) => item.leadId === prospecto.leadId)) {
+          estado.crm.prospectos.unshift({ ...prospecto, sincronizacion });
+        }
+        visita.crm = sincronizacion;
+        guardarEstado();
+        cargarProspectosDesdeSheets({ forzar: true }).catch(() => null);
+        return { ok: true };
+      } catch (error) {
+        const mensaje = error instanceof Error ? error.message : "sin respuesta";
+        visita.crm = { pendiente: true, ok: false, error: mensaje };
+        guardarEstado();
+        return { ok: false, error: mensaje };
+      }
     }
 
     let cargaCRMDesdeSheetsActiva = null;
@@ -1415,6 +1444,26 @@
       document.body.style.overflow = "";
     }
 
+    // Catálogo heredado de NEXUS — Ciclo Corto (Zapopan / Chapala), hoy Guardián.
+    const SERVICIOS_GUARDIAN = [
+      "Automatización de portón",
+      "Motor de portón (cambio)",
+      "Puerta peatonal CNC",
+      "Protecciones CNC ventanas",
+      "Protecciones casa sola",
+      "Videoportero + cámara",
+      "Iluminación + sensores",
+      "Pérgola",
+      "Plafón / muro drywall",
+      "Humedad + drywall",
+      "Anti-óxido herrería",
+      "Limpieza paneles solares",
+      "Hidrolavado",
+      "Diagnóstico express",
+      "Otro",
+    ];
+    const ZONAS_GUARDIAN = ["Zapopan", "Chapala", "Otra"];
+
     function pasoCampoUno(b) {
       return `
         <div class="form-grid">
@@ -1424,7 +1473,14 @@
           <div class="field field--wide"><label for="campo-servicio">Servicio solicitado</label>
             <select class="input" id="campo-servicio" data-campo="servicio">
               <option value="">Seleccionar servicio</option>
-              ${["Portón / automatización", "Pérgola", "Solar Care", "Hidrolavado", "Diagnóstico express", "Otro"].map(x => `<option ${b.servicio === x ? "selected" : ""}>${x}</option>`).join("")}
+              ${SERVICIOS_GUARDIAN.map(x => `<option ${b.servicio === x ? "selected" : ""}>${x}</option>`).join("")}
+              ${b.servicio && !SERVICIOS_GUARDIAN.includes(b.servicio) ? `<option selected>${escapeHtml(b.servicio)}</option>` : ""}
+            </select>
+          </div>
+          <div class="field"><label for="campo-zona">Zona</label>
+            <select class="input" id="campo-zona" data-campo="zona">
+              <option value="">Seleccionar zona</option>
+              ${ZONAS_GUARDIAN.map(x => `<option ${b.zona === x ? "selected" : ""}>${x}</option>`).join("")}
             </select>
           </div>
         </div>`;
@@ -1850,7 +1906,11 @@
           previewsCampo = [];
           pasoCampo = 1;
           guardarEstado();
-          mostrarToast(visitaRemota.fotos?.length ? "Visita y fotos guardadas. Ya aparecen ligadas al registro." : "Visita guardada en almacenamiento real.");
+          const visitaGuardada = estado.campo.guardados[0];
+          const crm = await sincronizarVisitaConCRM(visitaGuardada);
+          const fotosTexto = visitaRemota.fotos?.length ? ` con ${visitaRemota.fotos.length} foto(s)` : " sin fotos";
+          if (crm.ok) mostrarToast(`Visita guardada${fotosTexto} y enviada al CRM (${visitaGuardada.ticketId}).`);
+          else mostrarToast(`Visita guardada${fotosTexto}, pero el CRM no respondió: ${crm.error}. Usa "Pasar a CRM" para reintentar.`, "error");
           renderRuta();
         } catch (error) {
           mostrarToast(error instanceof Error ? error.message : "No se pudo guardar la visita.", "error");
