@@ -1,5 +1,8 @@
 const crypto = require('node:crypto');
 const { requireAuth } = require('../lib/auth');
+const { avisarVisitaNueva } = require('../lib/avisos');
+
+let avisar = avisarVisitaNueva;
 const { CampoStorageError, crearAlmacenCampo, validarFotos, tipoDeRuta, urlProtegida } = require('../lib/campo-storage');
 
 function responderJson(res, statusCode, payload) {
@@ -163,6 +166,9 @@ module.exports = async (req, res) => {
     );
     guardados.length = 0;
 
+    // La visita ya quedó guardada: el aviso es de mejor esfuerzo y no cambia la respuesta.
+    const avisos = await avisar(registro, { req }).catch(() => []);
+
     return responderJson(res, 200, {
       ok: true,
       visita: {
@@ -177,6 +183,7 @@ module.exports = async (req, res) => {
         responsable: registro.responsable,
         capturadoPor: registro.capturadoPor,
         fotos: fotosGuardadas,
+        avisos,
       },
     });
   } catch (error) {
@@ -194,3 +201,5 @@ module.exports = async (req, res) => {
     return responderJson(res, 500, { ok: false, error: 'No se pudo guardar la visita. Intenta de nuevo.' });
   }
 };
+
+module.exports._setAvisarForTests = (fn) => { avisar = fn || avisarVisitaNueva; };
