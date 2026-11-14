@@ -892,7 +892,9 @@
       const notas = [
         prospecto.resumen ? `Resumen CRM:\n${prospecto.resumen}` : "",
         visita?.registroPath ? `Registro Campo: ${visita.registroPath}` : visita?.registroUrl ? `Registro Campo: ${visita.registroUrl}` : prospecto.registroUrl ? `Registro Campo: ${prospecto.registroUrl}` : "",
-        Array.isArray(visita?.fotosRemotas) && visita.fotosRemotas.length ? `Fotos privadas (ver en Guardian Ops): ${visita.fotosRemotas.map((foto) => foto.pathname || foto.nombre).join(", ")}` : "",
+        visita?.id && /^vis-\d{10,}-[0-9a-f]{6}$/.test(visita.id) && visita.storage === "vercel-blob-private"
+          ? `Ver fotos (${(visita.fotosRemotas || []).length}): ${window.location.origin}/api/campo-fotos?visita=${visita.id}`
+          : "",
       ].filter(Boolean).join("\n\n");
 
       return {
@@ -1467,9 +1469,9 @@
     function pasoCampoUno(b) {
       return `
         <div class="form-grid">
-          <div class="field"><label for="campo-cliente">Cliente o prospecto</label><input class="input" id="campo-cliente" data-campo="cliente" value="${escaparAtributo(b.cliente)}" autocomplete="name" placeholder="Nombre completo"></div>
-          <div class="field"><label for="campo-telefono">Teléfono</label><input class="input" id="campo-telefono" data-campo="telefono" value="${escaparAtributo(b.telefono)}" inputmode="tel" autocomplete="tel" placeholder="33 0000 0000"></div>
-          <div class="field field--wide"><label for="campo-direccion">Dirección de la visita</label><input class="input" id="campo-direccion" data-campo="direccion" value="${escaparAtributo(b.direccion)}" autocomplete="street-address" placeholder="Calle, número, colonia y municipio"></div>
+          <div class="field"><label for="campo-cliente">Cliente o prospecto</label><input class="input" enterkeyhint="next" id="campo-cliente" data-campo="cliente" value="${escaparAtributo(b.cliente)}" autocomplete="name" placeholder="Nombre completo"></div>
+          <div class="field"><label for="campo-telefono">Teléfono</label><input class="input" enterkeyhint="next" id="campo-telefono" data-campo="telefono" value="${escaparAtributo(b.telefono)}" inputmode="tel" autocomplete="tel" placeholder="33 0000 0000"></div>
+          <div class="field field--wide"><label for="campo-direccion">Dirección de la visita</label><input class="input" enterkeyhint="next" id="campo-direccion" data-campo="direccion" value="${escaparAtributo(b.direccion)}" autocomplete="street-address" placeholder="Calle, número, colonia y municipio"></div>
           <div class="field field--wide"><label for="campo-servicio">Servicio solicitado</label>
             <select class="input" id="campo-servicio" data-campo="servicio">
               <option value="">Seleccionar servicio</option>
@@ -1489,8 +1491,8 @@
     function pasoCampoDos(b) {
       return `
         <div class="form-grid">
-          <div class="field"><label for="campo-ancho">Ancho aproximado (m)</label><input class="input" id="campo-ancho" data-campo="ancho" value="${escaparAtributo(b.ancho)}" inputmode="decimal" placeholder="0.00"></div>
-          <div class="field"><label for="campo-alto">Alto aproximado (m)</label><input class="input" id="campo-alto" data-campo="alto" value="${escaparAtributo(b.alto)}" inputmode="decimal" placeholder="0.00"></div>
+          <div class="field"><label for="campo-ancho">Ancho aproximado (m)</label><input class="input" enterkeyhint="next" id="campo-ancho" data-campo="ancho" value="${escaparAtributo(b.ancho)}" inputmode="decimal" placeholder="0.00"></div>
+          <div class="field"><label for="campo-alto">Alto aproximado (m)</label><input class="input" enterkeyhint="next" id="campo-alto" data-campo="alto" value="${escaparAtributo(b.alto)}" inputmode="decimal" placeholder="0.00"></div>
           <div class="field field--wide"><label for="campo-condicion">Condición observada</label><textarea class="input" id="campo-condicion" data-campo="condicion" placeholder="Describe estructura, acceso, energía, riesgos y restricciones">${b.condicion || ""}</textarea></div>
           <div class="field field--wide">
             <div class="photo-zone">
@@ -1516,8 +1518,8 @@
       return `
         <div class="form-grid">
           <div class="field field--wide"><label for="campo-notas">Notas para cotización</label><textarea class="input" id="campo-notas" data-campo="notas" placeholder="Alcance, preferencias del cliente, supuestos y siguientes pasos">${b.notas || ""}</textarea></div>
-          <div class="field"><label for="campo-fecha">Fecha sugerida de seguimiento</label><input class="input" id="campo-fecha" data-campo="fechaSeguimiento" value="${escaparAtributo(b.fechaSeguimiento)}" type="date"></div>
-          <div class="field"><label for="campo-responsable">Responsable</label><input class="input" id="campo-responsable" data-campo="responsable" value="${escaparAtributo(b.responsable)}" placeholder="Nombre del técnico"></div>
+          <div class="field"><label for="campo-fecha">Fecha sugerida de seguimiento</label><input class="input" enterkeyhint="next" id="campo-fecha" data-campo="fechaSeguimiento" value="${escaparAtributo(b.fechaSeguimiento)}" type="date"></div>
+          <div class="field"><label for="campo-responsable">Responsable</label><input class="input" enterkeyhint="next" id="campo-responsable" data-campo="responsable" value="${escaparAtributo(b.responsable)}" placeholder="Nombre del técnico"></div>
         </div>
         <div class="card" style="margin-top:18px;padding:16px;background:var(--superficie-2)">
           <strong>Resumen antes de guardar</strong>
@@ -1782,6 +1784,15 @@
 
     function enlazarCampo() {
       document.querySelectorAll("[data-campo]").forEach(campo => campo.addEventListener("input", guardarBorradorVisible));
+      // Enter avanza al siguiente campo; en el último, pasa al siguiente paso (no aplica en textos largos).
+      const camposOrdenados = Array.from(document.querySelectorAll("input[data-campo], select[data-campo], textarea[data-campo]"));
+      camposOrdenados.forEach((campo, indice) => campo.addEventListener("keydown", (evento) => {
+        if (evento.key !== "Enter" || evento.isComposing || campo.tagName === "TEXTAREA") return;
+        evento.preventDefault();
+        const siguiente = camposOrdenados[indice + 1];
+        if (siguiente) siguiente.focus();
+        else document.getElementById("campo-siguiente")?.click();
+      }));
       const renderizarPreviewsEnDOM = () => {
         const contenedor = document.getElementById("fotos-preview");
         if (!contenedor) return;
