@@ -71,7 +71,7 @@ test('cookie firmada permite continuar a un endpoint protegido', () => {
   const permitido = auth.requireAuth({
     headers: { cookie: `${auth.COOKIE_NAME}=${encodeURIComponent(token)}` },
   }, res);
-  assert.equal(permitido, true);
+  assert.equal(permitido.rol, 'dueno');
   assert.equal(res.statusCode, 0);
 });
 

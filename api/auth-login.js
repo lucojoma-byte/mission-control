@@ -1,4 +1,5 @@
-const { configuracionDisponible, passwordValido, cookieSesion } = require('../lib/auth');
+const { configuracionDisponible, passwordValido, cookieSesion, DUENO } = require('../lib/auth');
+const { crearRepositorioUsuarios } = require('../lib/usuarios');
 
 const MAX_FAILED_ATTEMPTS = 5;
 const WINDOW_MS = 15 * 60 * 1000;
@@ -62,17 +63,33 @@ async function login(req, res) {
   }
 
   const body = normalizarBody(req.body);
-  if (!passwordValido(body?.password)) {
+  const usuario = String(body?.usuario || '').trim().toLowerCase();
+
+  // Sin usuario (o "dueno"): contraseña principal del Dueño. Con usuario: cuenta por persona.
+  let identidad = null;
+  if (!usuario || usuario === 'dueno') {
+    if (passwordValido(body?.password)) identidad = { ...DUENO };
+  } else {
+    try {
+      identidad = await login._repositorio().autenticar(usuario, body?.password);
+    } catch (error) {
+      console.error('Login: no se pudieron leer los usuarios', { message: error?.message });
+      return responderJson(res, 503, { ok: false, error: 'No se pudo validar el usuario. Intenta de nuevo.' });
+    }
+  }
+
+  if (!identidad) {
     registerFailure(ip);
     await new Promise((resolve) => setTimeout(resolve, 350));
-    return responderJson(res, 401, { ok: false, error: 'Contraseña incorrecta.' });
+    return responderJson(res, 401, { ok: false, error: 'Usuario o contraseña incorrectos.' });
   }
 
   clearFailures(ip);
-  res.setHeader('Set-Cookie', cookieSesion());
-  return responderJson(res, 200, { ok: true });
+  res.setHeader('Set-Cookie', cookieSesion(identidad));
+  return responderJson(res, 200, { ok: true, sesion: identidad });
 }
 
 login._resetRateLimitForTests = () => failedAttemptsByIp.clear();
+login._repositorio = () => crearRepositorioUsuarios();
 
 module.exports = login;

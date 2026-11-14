@@ -149,7 +149,9 @@ module.exports = async (req, res) => {
     return responderJson(res, 405, { ok: false, error: 'Método no permitido.' });
   }
 
-  if (!requireAuth(req, res)) return;
+  // Campo puede enviar su visita al CRM, pero solo Dueño y Secretaria leen la cartera completa.
+  const sesion = requireAuth(req, res, { roles: req.method === 'GET' ? ['dueno', 'secretaria'] : ['dueno', 'secretaria', 'campo'] });
+  if (!sesion) return;
 
   try {
     if (!credencialesDisponibles()) {
@@ -193,6 +195,10 @@ module.exports = async (req, res) => {
     const body = normalizarBody(req.body);
     const prospecto = body && typeof body.prospecto === 'object' ? body.prospecto : null;
     const visita = body && typeof body.visita === 'object' ? body.visita : null;
+
+    if (prospecto && !valorTexto(prospecto.responsable) && !valorTexto(visita?.responsable)) {
+      prospecto.responsable = sesion.nombre;
+    }
 
     if (!prospecto || !valorTexto(prospecto.cliente)) {
       return responderJson(res, 400, { ok: false, error: 'El nombre del cliente es obligatorio.' });
