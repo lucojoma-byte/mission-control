@@ -1,6 +1,6 @@
 const crypto = require('node:crypto');
 const { requireAuth } = require('../lib/auth');
-const { CampoStorageError, crearAlmacenCampo, validarFotos } = require('../lib/campo-storage');
+const { CampoStorageError, crearAlmacenCampo, validarFotos, tipoDeRuta, urlProtegida } = require('../lib/campo-storage');
 
 function responderJson(res, statusCode, payload) {
   res.statusCode = statusCode;
@@ -36,14 +36,65 @@ function consecutivoDesdeTimestamp(timestamp = Date.now(), extra = 0) {
   return base.padStart(6, '0');
 }
 
+// Forma que usa la app para mostrar una visita (mismas claves que guarda el POST).
+function visitaParaApp(registro) {
+  const fotos = (Array.isArray(registro.fotos) ? registro.fotos : [])
+    .filter((foto) => tipoDeRuta(foto?.pathname) === 'foto')
+    .map((foto) => ({ nombre: foto.nombre, pathname: foto.pathname, contentType: foto.contentType, url: urlProtegida(foto.pathname) }));
+  const registroPath = `campo/visitas/${registro.id}.json`;
+  return {
+    id: registro.id,
+    clienteId: registro.clienteId,
+    leadId: registro.leadId,
+    ticketId: registro.ticketId,
+    guardadoEn: registro.guardadoEn,
+    storage: registro.storage,
+    cliente: registro.cliente,
+    telefono: registro.telefono,
+    direccion: registro.direccion,
+    servicio: registro.servicio,
+    zona: registro.zona,
+    ancho: registro.ancho,
+    alto: registro.alto,
+    condicion: registro.condicion,
+    notas: registro.notas,
+    fechaSeguimiento: registro.fechaSeguimiento,
+    responsable: registro.responsable,
+    capturadoPor: registro.capturadoPor || null,
+    fotos: registro.fotosResumen || '',
+    fotosRemotas: fotos,
+    registroPath,
+    registroUrl: urlProtegida(registroPath),
+  };
+}
+
+// Lista compartida: Dueño y Secretaria ven todas; Campo solo las que capturó.
+async function listarVisitas(req, res, sesion) {
+  try {
+    const almacen = crearAlmacenCampo();
+    if (!almacen.modo) throw new CampoStorageError('Falta conectar el Blob store privado.', 503);
+    const registros = await almacen.listarRegistros({ limite: 100 });
+    const visibles = sesion.rol === 'campo'
+      ? registros.filter((registro) => registro.capturadoPor?.usuario === sesion.usuario)
+      : registros;
+    res.setHeader('Cache-Control', 'no-store');
+    return responderJson(res, 200, { ok: true, visitas: visibles.map(visitaParaApp) });
+  } catch (error) {
+    if (error instanceof CampoStorageError) return responderJson(res, error.statusCode, { ok: false, error: error.message });
+    console.error('Campo: fallo al listar visitas', { name: error?.name, message: error?.message });
+    return responderJson(res, 500, { ok: false, error: 'No se pudieron cargar las visitas.' });
+  }
+}
+
 module.exports = async (req, res) => {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+  if (!['GET', 'POST'].includes(req.method)) {
+    res.setHeader('Allow', 'GET, POST');
     return responderJson(res, 405, { ok: false, error: 'Método no permitido.' });
   }
 
   const sesion = requireAuth(req, res);
   if (!sesion) return;
+  if (req.method === 'GET') return listarVisitas(req, res, sesion);
 
   const guardados = [];
   let almacen = null;

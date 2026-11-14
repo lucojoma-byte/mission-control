@@ -944,6 +944,7 @@
       document.getElementById("sesion-salir")?.addEventListener("click", cerrarSesion);
       document.getElementById("sesion-entrar")?.addEventListener("click", () => solicitarAccesoPrivado().then(() => renderRuta()).catch(() => null));
       if (sesionActual?.rol === "campo" && !rutaActual().startsWith("/holding/campo")) navegar("/holding/campo");
+      if (sesionActual) cargarVisitasCompartidas({ forzar: true });
     }
 
     async function cargarSesion() {
@@ -1056,6 +1057,48 @@
         guardarEstado();
         return { ok: false, error: mensaje };
       }
+    }
+
+    // ===== Visitas compartidas (servidor) =====
+    // La lista de visitas viene del almacén privado: todos ven lo mismo según su rol.
+    const visitasCompartidas = { cargando: false, ultimaCarga: 0 };
+
+    async function cargarVisitasCompartidas({ forzar = false } = {}) {
+      if (visitasCompartidas.cargando) return;
+      if (!forzar && Date.now() - visitasCompartidas.ultimaCarga < 30000) return;
+      visitasCompartidas.cargando = true;
+      try {
+        const respuesta = await fetch("/api/campo-visitas", { credentials: "same-origin" }).catch(() => null);
+        if (!respuesta || !respuesta.ok) return;
+        const data = await respuesta.json().catch(() => ({}));
+        if (!Array.isArray(data?.visitas)) return;
+        const delServidor = new Set(data.visitas.map((visita) => visita.id));
+        const locales = estado.campo.guardados.filter((visita) => !delServidor.has(visita.id) && visita.storage !== "vercel-blob-private");
+        const crmPorId = new Map(estado.campo.guardados.filter((v) => v.crm).map((v) => [v.id, v.crm]));
+        estado.campo.guardados = [
+          ...data.visitas.map((visita) => (crmPorId.has(visita.id) ? { ...visita, crm: crmPorId.get(visita.id) } : visita)),
+          ...locales,
+        ];
+        guardarEstado();
+      } finally {
+        // Se marca siempre (aunque falle) para no reintentar en bucle sin sesión.
+        visitasCompartidas.ultimaCarga = Date.now();
+        visitasCompartidas.cargando = false;
+        refrescarVistasDeVisitas();
+      }
+    }
+
+    function refrescarVistasDeVisitas() {
+      const ruta = rutaActual();
+      const historial = document.getElementById("historial-campo");
+      if (historial) {
+        historial.innerHTML = renderHistorialCampo();
+        historial.querySelectorAll("[data-route-link]").forEach((link) => link.addEventListener("click", (e) => {
+          e.preventDefault();
+          navegar(link.getAttribute("href"));
+        }));
+      }
+      if (ruta === "/holding/campo/registro") renderRuta();
     }
 
     let cargaCRMDesdeSheetsActiva = null;
@@ -1292,24 +1335,24 @@
               <article class="visit-card">
                 <div class="visit-card__top">
                   <div>
-                    <h4 class="visit-card__title">${visita.cliente || "Sin cliente"}</h4>
-                    <p class="visit-card__note">${visita.servicio || "Sin servicio"} · ${cortarTexto(visita.direccion)}</p>
+                    <h4 class="visit-card__title">${textoVisible(visita.cliente, "Sin cliente")}</h4>
+                    <p class="visit-card__note">${textoVisible(visita.servicio, "Sin servicio")} · ${escapeHtml(cortarTexto(visita.direccion))}</p>
                   </div>
                   <span class="visit-card__time">${formatearFechaHora(visita.guardadoEn)}</span>
                 </div>
                 <ul class="visit-card__ids">
-                  <li>Cliente ID: ${visita.clienteId || "Pendiente"}</li>
-                  <li>Lead ID: ${visita.leadId || "Pendiente"}</li>
-                  <li>Ticket ID: ${visita.ticketId || "Pendiente"}</li>
+                  <li>Cliente ID: ${textoVisible(visita.clienteId, "Pendiente")}</li>
+                  <li>Lead ID: ${textoVisible(visita.leadId, "Pendiente")}</li>
+                  <li>Ticket ID: ${textoVisible(visita.ticketId, "Pendiente")}</li>
                 </ul>
                 <ul class="visit-card__meta">
                   <li>${(visita.fotosRemotas || visita.fotos || []).length} foto(s)</li>
-                  <li>${visita.storage || "Sin storage"}</li>
-                  <li>${visita.telefono ? visita.telefono : "Sin teléfono"}</li>
+                  <li>${visita.capturadoPor?.nombre ? `Capturó: ${escapeHtml(visita.capturadoPor.nombre)}` : textoVisible(visita.storage, "Sin storage")}</li>
+                  <li>${textoVisible(visita.telefono, "Sin teléfono")}</li>
                 </ul>
                 <div class="visit-card__actions">
                   <a class="button button--primary" data-route-link href="/holding/campo/registro?visita=${encodeURIComponent(visita.id || "")}">Ver registro</a>
-                  <a class="button" data-route-link href="/holding/crm?visita=${encodeURIComponent(visita.id || "")}">Pasar a CRM</a>
+                  ${sesionActual?.rol === "campo" ? "" : `<a class="button" data-route-link href="/holding/crm?visita=${encodeURIComponent(visita.id || "")}">Pasar a CRM</a>`}
                   ${visita.registroUrl ? `<a class="button" href="${escaparAtributo(visita.registroUrl)}" target="_blank" rel="noopener noreferrer">Descargar JSON</a>` : ""}
                   ${(visita.fotosRemotas || []).length ? `<a class="button" href="${escaparAtributo((visita.fotosRemotas || [])[0].url)}" target="_blank" rel="noopener noreferrer">Abrir foto</a>` : ""}
                 </div>
@@ -1325,8 +1368,8 @@
           <div class="field-shell">
             ${cabecera("GUARDIÁN · OPERACIÓN EN SITIO", "Registro de visita", "Vista legible del registro capturado desde Campo.", "Piloto")}
             <section class="card field-card">
-              <h2>Registro no encontrado</h2>
-              <p>Esta visita ya no está guardada en este dispositivo o el enlace no es válido.</p>
+              <h2>${visitasCompartidas.cargando ? "Cargando visita…" : "Registro no encontrado"}</h2>
+              <p>${visitasCompartidas.cargando ? "Buscando la visita en el almacén compartido." : "No encontramos esta visita o tu usuario no tiene acceso a ella."}</p>
               <div class="field-actions">
                 <a class="button button--primary" data-route-link href="/holding/campo">Volver a Campo</a>
               </div>
@@ -1626,7 +1669,7 @@
               <button class="button button--primary" id="campo-siguiente" type="button">${pasoCampo === 3 ? "Guardar visita" : "Guardar y continuar"}</button>
             </div>
           </section>
-          ${renderHistorialCampo()}
+          <div id="historial-campo">${renderHistorialCampo()}</div>
           <p style="color:var(--suave);font-size:.76rem;text-align:center">Borrador guardado automáticamente en este dispositivo.</p>
         </div>`;
     }
@@ -1928,6 +1971,7 @@
         }));
       }
 
+      if (ruta.startsWith("/holding/campo") || ruta === "/holding/crm") cargarVisitasCompartidas();
       if (ruta === "/holding/campo") enlazarCampo();
       if (ruta === "/holding/campo/registro") enlazarRegistroCampo();
       if (ruta === "/holding/crm") enlazarCRM();
@@ -2079,6 +2123,7 @@
           visitaGuardada.capturadoPor = visitaRemota.capturadoPor || null;
           const crm = await sincronizarVisitaConCRM(visitaGuardada);
           const fotosTexto = visitaRemota.fotos?.length ? ` con ${visitaRemota.fotos.length} foto(s)` : " sin fotos";
+          visitasCompartidas.ultimaCarga = 0;
           if (crm.ok) mostrarToast(`Visita guardada${fotosTexto} y enviada al CRM (${visitaGuardada.ticketId}).`);
           else mostrarToast(`Visita guardada${fotosTexto}, pero el CRM no respondió: ${crm.error}. Usa "Pasar a CRM" para reintentar.`, "error");
           renderRuta();
